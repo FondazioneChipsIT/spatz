@@ -726,7 +726,7 @@ module spatz_vfu
       Reduction_Wait: begin
         // Are we ready to accept a result?
         result_ready = &(result_valid | ~pending_results) && ((result_tag.wb && vfu_rsp_ready_i) || vrf_wvalid_i);
-        
+
         if (!is_fpu_busy)
           reduction_state_d = Reduction_Init;
       end
