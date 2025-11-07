@@ -149,7 +149,7 @@ int test_case;
         return;                                                                \
       }                                                                        \
     }                                                                          \
-    printf("[TC %d] PASSED.\n" ,casenum);                                                       \
+    printf("[TC %d] PASSED.\n", casenum);                                                       \
   } while (0)
 
 // Check the results against an in-memory vector of golden values
