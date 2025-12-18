@@ -33,7 +33,7 @@ download: sw/toolchain/riscv-gnu-toolchain sw/toolchain/llvm-project sw/toolchai
 
 sw/toolchain/riscv-gnu-toolchain: sw/toolchain/riscv-gnu-toolchain.version
 	mkdir -p sw/toolchain
-	cd sw/toolchain && git clone https://github.com/pulp-platform/pulp-riscv-gnu-toolchain.git riscv-gnu-toolchain
+	cd sw/toolchain && git clone git@github.com:pulp-platform/pulp-riscv-gnu-toolchain.git riscv-gnu-toolchain
 	cd sw/toolchain/riscv-gnu-toolchain &&           \
 		git checkout `cat ../riscv-gnu-toolchain.version` && \
 		git submodule update --init --recursive --jobs=8 .
@@ -47,21 +47,21 @@ sw/toolchain/llvm-project: sw/toolchain/llvm-project.version
 
 sw/toolchain/riscv-opcodes: sw/toolchain/riscv-opcodes.version
 	mkdir -p sw/toolchain
-	cd sw/toolchain && git clone https://github.com/pulp-platform/riscv-opcodes.git
+	cd sw/toolchain && git clone git@github.com:pulp-platform/riscv-opcodes.git
 	cd sw/toolchain/riscv-opcodes &&                 \
 		git checkout `cat ../riscv-opcodes.version` && \
 		git submodule update --init --recursive --jobs=8 .
 
 sw/toolchain/verilator: sw/toolchain/verilator.version
 	mkdir -p sw/toolchain
-	cd sw/toolchain && git clone https://github.com/verilator/verilator.git
+	cd sw/toolchain && git clone git@github.com:verilator/verilator.git
 	cd sw/toolchain/verilator &&                     \
 		git checkout `cat ../verilator.version` && \
 		git submodule update --init --recursive --jobs=8 .
 
 sw/toolchain/riscv-isa-sim: sw/toolchain/riscv-isa-sim.version
 	mkdir -p sw/toolchain
-	cd sw/toolchain && git clone https://github.com/riscv-software-src/riscv-isa-sim.git
+	cd sw/toolchain && git clone git@github.com:riscv-software-src/riscv-isa-sim.git
 	cd sw/toolchain/riscv-isa-sim &&                 \
 		git checkout `cat ../riscv-isa-sim.version` && \
 		git submodule update --init --recursive --jobs=8 .
@@ -100,9 +100,10 @@ tc-llvm: sw/toolchain/llvm-project
 	make -j8 all && \
 	make install
 
+# RG: added NO_PYTHON=1 to dtc install
 tc-riscv-isa-sim: sw/toolchain/riscv-isa-sim sw/toolchain/dtc
 	mkdir -p $(SPIKE_INSTALL_DIR)
-	cd sw/toolchain/dtc/dtc-1.7.0 && make install PREFIX=$(SPIKE_INSTALL_DIR)
+	cd sw/toolchain/dtc/dtc-1.7.0 && make install PREFIX=$(SPIKE_INSTALL_DIR) NO_PYTHON=1
 	cd sw/toolchain/riscv-isa-sim && rm -rf build && mkdir -p build && cd build && \
 	PATH=$(SPIKE_INSTALL_DIR)/bin:$(PATH) ../configure --prefix=$(SPIKE_INSTALL_DIR) && \
 	$(MAKE) MAKEINFO=true -j4 install

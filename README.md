@@ -24,11 +24,25 @@ source util/iis-env.sh
 make init
 ```
 
+Analogously, Chips-IT users can do that by doing:
+
+```bash
+
+source util/chips-it-env.sh
+
+make init
+```
+
 The Spatz cluster system (hw/system/spatz_cluster) is a fundamental system around a Snitch core and a Spatz coprocessor. The cluster can be configured using a config file. The configuration parameters are documented using JSON schema, and documentation is generated for the schema. The cluster testbench simulates an infinite memory. The RISC-V ELF file is preloaded using RISC-V's Front-end Server (`fesvr`).
 
 ### Simulating the system
 
 In `hw/system/spatz_cluster`:
+
+Just for Chips-IT users: remember to load the tool before starting the compilation. As an example for Questasim:
+```bash
+    module load questa/2025.3
+```
 
 - Compile the software and the binaries:
   - Verilator:
