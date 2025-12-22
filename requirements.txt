@@ -3,5 +3,8 @@ jsonref
 jsonschema
 jstyleson
 mako
-scipy
+dataclasses
 flake8
+torch
+numpy
+scipy

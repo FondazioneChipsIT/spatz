@@ -56,9 +56,9 @@ endif
 include $(ROOT)/util/Makefrag
 
 # QuestaSim
-VSIM      = questa-2021.3-kgf vsim
-VLOG      = questa-2021.3-kgf vlog
-VSIM_HOME = /usr/pack/questa-2021.3-kgf/questasim
+VSIM      ?= vsim
+VLOG      ?= vlog
+VSIM_HOME ?=
 
 VSIM_FLAGS += -t 1ps
 VSIM_FLAGS += -do "log -r /*; source ${SPATZ_CLUSTER_DIR}/script/vsim/wave.tcl; run -a"
@@ -128,8 +128,9 @@ spatz.gendata:
 		data_dir="$$benchmark_dir/data"; \
 		if [ -d "$$script_dir" ]; then \
 			json_count=$$(find "$$script_dir" -name '*.json' -type f | wc -l); \
-			if [ "$$json_count" -gt 0 ]; then \
-				echo "Generating data for benchmark $$benchmark_dir ($$json_count json configs)"; \
+			data_count=$$(find "$$data_dir" -name 'data*.h' -type f 2>/dev/null | wc -l); \
+			if [ "$$json_count" -ne "$$data_count" ]; then \
+				echo "Generating data for benchmark $$benchmark_dir ($$json_count json configs, $$data_count data files found)"; \
 				for config in "$$script_dir"/*.json; do \
 					if [ -f "$$config" ]; then \
 						config_path="script/$$(basename $$config)"; \
@@ -137,7 +138,7 @@ spatz.gendata:
 					fi \
 				done \
 			else \
-				echo "No json data configs for benchmark $$benchmark_dir"; \
+				echo "Data already present for benchmark $$benchmark_dir ($$json_count data files)"; \
 			fi \
 		fi \
 	done
@@ -213,18 +214,71 @@ clean.vsim:
 #######
 # VCS #
 #######
-# @IIS: vcs-2020.12 make bin/spatz_cluster.vcs
-## Build compilation script and compile all sources for VCS simulation
+
+VCS       ?= vcs
+VERDI     ?= verdi
+VERDI_GUI ?= ultra
+FSDB_FILE ?= inter.fsdb
+
+VCS_BUILDDIR ?= work-vcs
+VCS_SIMV     := bin/spatz_cluster.vcs.simv
+
+VCS_COMMON_FLAGS += -Mlib=$(VCS_BUILDDIR)
+VCS_COMMON_FLAGS += -Mdir=$(VCS_BUILDDIR)
+VCS_COMMON_FLAGS += -full64
+VCS_COMMON_FLAGS += -sverilog
+VCS_COMMON_FLAGS += -override_timescale=1ns/1ps
+VCS_COMMON_FLAGS += -assert disable_cover
+VCS_COMMON_FLAGS += -lca
+VCS_COMMON_FLAGS += -j4
+VCS_COMMON_FLAGS += -cc $(CC)
+VCS_COMMON_FLAGS += -cpp $(CXX)
+
+VCS_DEBUG ?= 1
+
+ifeq ($(VCS_DEBUG),1)
+VCS_DEBUG_FLAGS += -debug_access+all
+VCS_DEBUG_FLAGS += -kdb=common_elab
+VCS_DEBUG_FLAGS += +vcs+fsdbon
+VLOGAN_FLAGS += +define+FSDB_DUMP
+else
+VCS_DEBUG_FLAGS += -O2
+endif
+
 bin/spatz_cluster.vcs: test/bootrom.bin work-vcs/compile.sh work/lib/libfesvr_vcs.a ${TB_DIR}/common_lib.cc test/bootdata.cc test/bootrom.bin test/uartdpi/uartdpi.c
-	mkdir -p bin
-	# Default to fast simulation flags, use `-debug_access+all +vcs+fsdbon` for waveform debugging
-	vcs -Mlib=work-vcs -Mdir=work-vcs -O2 -debug_access=r -debug_region=1,tb_bin -kdb -o $@ -j4 -cc $(CC) -cpp $(CXX) \
-		-assert disable_cover -override_timescale=1ns/1ps -full64 tb_bin ${TB_DIR}/rtl_lib.cc ${TB_DIR}/common_lib.cc test/bootdata.cc test/uartdpi/uartdpi.c \
-		-CFLAGS "-I${MKFILE_DIR} -I${MKFILE_DIR}/test -I${FESVR}/include -I${TB_DIR} -Itest/uartdpi" -LDFLAGS "-L${FESVR}/lib" -lfesvr_vcs -lutil
+	mkdir -p bin bin/logs
+	$(VCS) $(VCS_COMMON_FLAGS) $(VCS_DEBUG_FLAGS) \
+	    -o $@.simv \
+	    tb_bin ${TB_DIR}/rtl_lib.cc ${TB_DIR}/common_lib.cc test/bootdata.cc test/uartdpi/uartdpi.c \
+	    -CFLAGS "-I${MKFILE_DIR} -I${MKFILE_DIR}/test -I${FESVR}/include -I${TB_DIR} -Itest/uartdpi" \
+	    -LDFLAGS "-L${FESVR}/lib" \
+	    -lfesvr_vcs -lutil
+	@echo '#!/bin/bash' > $@
+	@echo 'mkdir -p ${MKFILE_DIR}bin/logs' >> $@
+	@echo 'echo `realpath $$1` > ${MKFILE_DIR}bin/logs/.rtlbinary' >> $@
+	@echo 'exec ${MKFILE_DIR}$@.simv "$$@" < /dev/null' >> $@
+	@chmod +x $@
+
+bin/spatz_cluster.vcs.gui: bin/spatz_cluster.vcs
+	@echo '#!/bin/bash' > $@
+	@echo 'set -e' >> $@
+	@echo 'mkdir -p ${MKFILE_DIR}bin/logs' >> $@
+	@echo 'if [ "$$#" -lt 1 ]; then' >> $@
+	@echo '  echo "Usage: $$0 <elf/binary> [simv_args...]"' >> $@
+	@echo '  exit 1' >> $@
+	@echo 'fi' >> $@
+	@echo 'echo `realpath $$1` > ${MKFILE_DIR}bin/logs/.rtlbinary' >> $@
+	@echo 'UCLI_CMD=${MKFILE_DIR}bin/logs/vcs_gui_auto_run.ucli' >> $@
+	@echo 'echo "run" > $$UCLI_CMD' >> $@
+	@echo 'exec ${MKFILE_DIR}bin/spatz_cluster.vcs.simv -gui=$(VERDI_GUI) -ucli -do $$UCLI_CMD "$$@" -l ${MKFILE_DIR}bin/logs/vcs_gui.log < /dev/null' >> $@
+	@chmod +x $@
+
+bin/spatz_cluster.verdi.vcs: bin/spatz_cluster.vcs
+	$(VERDI) -dbdir $(VCS_BUILDDIR) -ssf $(FSDB_FILE)
 
 ## Clean all build directories and temporary files for VCS simulation
 clean.vcs:
-	rm -rf bin/spatz_cluster.vcs work-vcs work.lib++ AN.DB work vc_hdrs.h
+	rm -rf bin/spatz_cluster.vcs bin/spatz_cluster.vcs.simv work-vcs work.lib++ AN.DB work vc_hdrs.h
 
 ############
 # SPYGLASS #
@@ -261,7 +315,7 @@ sw.test.vsim: sw.vsim
 
 # VCS
 ## Build SW into sw/build with the LLVM toolchain (including tests) for VCS simulator
-sw.vcs: clean.sw bin/spatz_cluster.vcs spatz.gendata
+sw.vcs: clean.sw bin/spatz_cluster.vcs bin/spatz_cluster.vcs.gui spatz.gendata
 	mkdir -p sw/build
 	cd sw/build && ${CMAKE} -DLLVM_PATH=${LLVM_INSTALL_DIR} -DGCC_PATH=${GCC_INSTALL_DIR} -DPYTHON=${PYTHON} -DSNITCH_SIMULATOR=../../../../../hw/system/spatz_cluster/bin/spatz_cluster.vcs -DBUILD_TESTS=ON -DSPATZ_CLUSTER_CFG=${SPATZ_CLUSTER_CFG} ${SPATZ_CLUSTER_CFG_DEFINES} .. && make -j8
 
