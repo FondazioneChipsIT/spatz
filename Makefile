@@ -19,7 +19,7 @@ OPCODES := "opcodes-rvv opcodes-rv32b_CUSTOM opcodes-ipu_CUSTOM opcodes-frep_CUS
 # Default target
 all: bender toolchain update_opcodes
 
-# Target for IIS users
+# Target for IIS/Chips-IT users
 init: bender update_opcodes
 
 ###############
@@ -102,7 +102,7 @@ tc-llvm: sw/toolchain/llvm-project
 
 tc-riscv-isa-sim: sw/toolchain/riscv-isa-sim sw/toolchain/dtc
 	mkdir -p $(SPIKE_INSTALL_DIR)
-	cd sw/toolchain/dtc/dtc-1.7.0 && make install PREFIX=$(SPIKE_INSTALL_DIR)
+	cd sw/toolchain/dtc/dtc-1.7.0 && make install PREFIX=$(SPIKE_INSTALL_DIR) NO_PYTHON=1
 	cd sw/toolchain/riscv-isa-sim && rm -rf build && mkdir -p build && cd build && \
 	PATH=$(SPIKE_INSTALL_DIR)/bin:$(PATH) ../configure --prefix=$(SPIKE_INSTALL_DIR) && \
 	$(MAKE) MAKEINFO=true -j4 install
