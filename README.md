@@ -24,11 +24,25 @@ source util/iis-env.sh
 make init
 ```
 
+Analogously, Chips-IT users can do that by doing:
+
+```bash
+
+source util/chips-it-env.sh
+
+make init
+```
+
 The Spatz cluster system (hw/system/spatz_cluster) is a fundamental system around a Snitch core and a Spatz coprocessor. The cluster can be configured using a config file. The configuration parameters are documented using JSON schema, and documentation is generated for the schema. The cluster testbench simulates an infinite memory. The RISC-V ELF file is preloaded using RISC-V's Front-end Server (`fesvr`).
 
 ### Simulating the system
 
 In `hw/system/spatz_cluster`:
+
+- Generate needed files (first time only):
+```bash
+    make generate -B
+```
 
 - Compile the software and the binaries:
   - Verilator:
@@ -81,6 +95,25 @@ make bin/spatz_cluster.vlt CFG=cfg/spatz_cluster.default.hjson
 ```
 
 The default config is in `cfg/spatz_cluster.default.hjson`. Alternatively, you can also set your `CFG` environment variable, the Makefile will pick it up and override the standard config.
+
+### CHIPS-IT simulation flow example
+```bash
+
+source util/chips-it-env.sh
+make init
+cd hw/system/spatz_cluster
+
+make clean.vsim
+make sw.vsim -B SPATZ_CLUSTER_CFG=spatz_cluster.32b.dram.hjson
+#alternatively:
+make clean.vcs
+make sw.vcs -B SPATZ_CLUSTER_CFG=spatz_cluster.32b.dram.hjson
+
+bin/spatz_cluster.vsim.gui sw/build/riscvTests/test-riscvTests-vls
+#alternatively:
+bin/spatz_cluster.vcs.gui sw/build/riscvTests/test-riscvTests-vls
+
+```
 
 ## Architecture
 
