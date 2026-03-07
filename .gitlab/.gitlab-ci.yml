@@ -8,20 +8,12 @@ variables:
   GIT_SUBMODULE_STRATEGY: none
   ROOT_DIR: '$CI_PROJECT_DIR'
   APPS: "tests"
-
-  LLVM_INSTALL_DIR:      '/opt/riscv/spatz-14-llvm'
-  GCC_INSTALL_DIR:       '/opt/riscv/spatz-gcc-7.1.1'
-  BENDER_INSTALL_DIR:    '/tools/utils/bender_0.29.1'
-  VERILATOR_INSTALL_DIR: '/tools/verilator/5.041'
-  VERILATOR_ROOT:        '/tools/verilator/5.041/share/verilator'
-  PATH: '/opt/riscv/spatz-14-llvm/bin:/opt/riscv/spatz-gcc-7.1.1/bin:/tools/utils/bender_0.29.1:/tools/verilator/5.041/bin'
-
   OBJCACHE: ''
   RISCV_WARNINGS: '-Werror'
-  CTEST: '/usr/local/bin/ctest'
-  python:  '/usr/bin/python3.8'
-  python3: '/usr/bin/python3.8'
-
+  CMAKE: 'cmake'
+  CTEST: 'ctest'
+  python: 'python3.6'
+  python3: 'python3.6'
 
 workflow:
   rules:
@@ -30,10 +22,8 @@ workflow:
     - if: $CI_COMMIT_REF_NAME
 
 before_script:
+  - source util/chips-it-env.sh
   - env
-  - module load questa/2025.3
-  - module load vcs/2024.09
-  - module load verilator/5.041
 
 stages:
   - test
