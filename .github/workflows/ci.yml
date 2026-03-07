@@ -58,3 +58,5 @@ jobs:
           domain: gitlab.chips.it
           repo: digitalresearchline/githubmirrors/spatz
           token: ${{ secrets.GITLAB_TOKEN }}
+          # since poll_period = 10 by default --> 4h timeout
+          poll_count: 1440

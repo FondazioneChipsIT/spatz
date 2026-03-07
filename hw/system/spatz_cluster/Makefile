@@ -51,12 +51,11 @@ VLOG      ?= vlog
 VSIM_HOME ?=
 
 VSIM_FLAGS += -t 1ps
-VSIM_FLAGS += -do "log -r /*; source ${SPATZ_CLUSTER_DIR}/script/vsim/wave.tcl; run -a"
 
-# Fast simulation for command line simulation
-VSIM_FLAGS_SHELL = $(VSIM_FLAGS) -voptargs=-O5
+# Fast simulation for command line simulation (CI)
+VSIM_FLAGS_SHELL = $(VSIM_FLAGS) -voptargs=-O5 -do "run -a"
 # Full signal visibility for GUI simulation
-VSIM_FLAGS_GUI   = $(VSIM_FLAGS) -voptargs=+acc
+VSIM_FLAGS_GUI   = $(VSIM_FLAGS) -voptargs=+acc -do "log -r /*; source ${SPATZ_CLUSTER_DIR}/script/vsim/wave.tcl; run -a"
 
 VLOG_FLAGS += -svinputport=compat
 VLOG_FLAGS += -override_timescale 1ns/1ps
