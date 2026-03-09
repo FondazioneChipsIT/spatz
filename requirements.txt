@@ -4,3 +4,4 @@ jsonschema
 jstyleson
 mako
 dataclasses
+flake8
