@@ -7,10 +7,16 @@ export GCC_INSTALL_DIR=/opt/riscv/spatz-gcc-7.1.1
 QUESTA_VERSION="2025.3"
 echo "Load Questa $QUESTA_VERSION environment for Chips-IT"
 module load questa/$QUESTA_VERSION
-export VSIM_HOME=/tools/siemens/questa_$QUESTA_VERSION/questasim
 
-export BENDER_INSTALL_DIR=/tools/utils/bender_0.29.1
-export VERILATOR_INSTALL_DIR=/tools/verilator/5.041
+VCS_VERSION="2024.09"
+echo "Load VCS $VCS_VERSION environment for Chips-IT"
+module load vcs/$VCS_VERSION
+
+BENDER_VERSION="0.29.1"
+echo "Load Bender $BENDER_VERSION environment for Chips-IT"
+module load bender/$BENDER_VERSION
+export BENDER_INSTALL_DIR=/tools/utils/bender_$BENDER_VERSION
+
 
 export PYTHON=python3
 if [[ ! -x ".venv/bin/python" ]]; then
