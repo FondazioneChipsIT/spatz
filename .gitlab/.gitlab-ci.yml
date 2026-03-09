@@ -12,8 +12,8 @@ variables:
   RISCV_WARNINGS: '-Werror'
   CMAKE: 'cmake'
   CTEST: 'ctest'
-  python: 'python3.6'
-  python3: 'python3.6'
+  python: 'python3'
+  python3: 'python3'
 
 workflow:
   rules:
