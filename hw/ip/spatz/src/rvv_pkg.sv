@@ -51,4 +51,15 @@ package rvv_pkg;
     OPCFG = 3'b111
   } opcodev_func3_e;
 
+  typedef enum logic [2:0]{
+    NF_1 = 3'b000,
+    NF_2 = 3'b001,
+    NF_3 = 3'b010,
+    NF_4 = 3'b011,
+    NF_5 = 3'b100,
+    NF_6 = 3'b101,
+    NF_7 = 3'b110,
+    NF_8 = 3'b111
+  } nf_t;
+
  endpackage : rvv_pkg

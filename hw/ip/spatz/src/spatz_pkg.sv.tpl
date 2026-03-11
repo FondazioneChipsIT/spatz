@@ -141,9 +141,9 @@ package spatz_pkg;
     // Slide instructions
     VSLIDEUP, VSLIDEDOWN,
     // Load instructions
-    VLE, VLSE, VLXE,
+    VLE, VLSE, VLXE, VLSEG,
     // Store instructions
-    VSE, VSSE, VSXE,
+    VSE, VSSE, VSXE, VSSEG,
     // Config instruction
     VCFG,
     // VCSR
@@ -216,6 +216,7 @@ package spatz_pkg;
     spatz_id_t id;
 
     // Used vector registers
+    nf_t nf;
     vreg_t vs1;
     logic use_vs1;
     vreg_t vs2;
