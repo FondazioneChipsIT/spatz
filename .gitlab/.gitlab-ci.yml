@@ -8,18 +8,12 @@ variables:
   GIT_SUBMODULE_STRATEGY: none
   ROOT_DIR: '$CI_PROJECT_DIR'
   APPS: "tests"
-  RUST_LOG: 'memora=debug'
-  VERILATOR_ROOT: '$CI_PROJECT_DIR/install/verilator/share/verilator'
-  PATH: '/home/gitlabci/.cargo/bin:/usr/local/bin:/usr/bin:/usr/sbin:/sbin:/usr/local/condor/bin:/usr/sepp/bin:$CI_PROJECT_DIR/install/verilator/bin:/home/gitlabci/.local/bin'
   OBJCACHE: ''
   RISCV_WARNINGS: '-Werror'
-  CC: 'gcc-11.2.0'
-  CXX: 'g++-11.2.0'
-  CMAKE: 'cmake-3.18.1'
-  CTEST: 'ctest-3.18.1'
-  VCS: 'vcs-2022.06'
-  python: 'python3.6'
-  python3: 'python3.6'
+  CMAKE: 'cmake'
+  CTEST: 'ctest'
+  python: 'python3'
+  python3: 'python3'
 
 workflow:
   rules:
@@ -28,46 +22,12 @@ workflow:
     - if: $CI_COMMIT_REF_NAME
 
 before_script:
+  - source util/chips-it-env.sh
   - env
 
 stages:
-  - tools
   - test
   - lint
-
-###########
-#  Tools  #
-###########
-
-tc-gcc:
-  stage: tools
-  script:
-    - |
-      if ! $CI_PROJECT_DIR/util/memora_retry.sh lookup tc-riscv-gcc; then
-        make sw/toolchain/riscv-gnu-toolchain tc-riscv-gcc
-        $CI_PROJECT_DIR/util/memora_retry.sh insert tc-riscv-gcc
-      fi
-
-tc-llvm:
-  stage: tools
-  script:
-    - |
-      if ! $CI_PROJECT_DIR/util/memora_retry.sh lookup tc-llvm; then
-        make sw/toolchain/llvm-project tc-llvm
-        $CI_PROJECT_DIR/util/memora_retry.sh insert tc-llvm
-      fi
-
-verilator:
-  stage: tools
-  script:
-    - |
-      if ! $CI_PROJECT_DIR/util/memora_retry.sh lookup verilator; then
-        export VERILATOR_CI="--disable-defenv"
-        # Verilator requires a more recent version of python than the default one.
-        export PYTHON3=$(which python3.6)
-        make sw/toolchain/verilator verilator
-        $CI_PROJECT_DIR/util/memora_retry.sh insert verilator
-      fi
 
 ##########
 #  Lint  #
@@ -77,10 +37,7 @@ verilator:
 code-style:
   stage: lint
   script:
-    # Download LLVM
-    - $CI_PROJECT_DIR/util/memora_retry.sh get tc-llvm
     - ./util/lint.sh
-  needs: ["tc-llvm"]
 
 ###########
 #  Build  #
@@ -90,27 +47,14 @@ code-style:
 snRuntime-test-vsim:
   stage: test
   script:
-    # Download LLVM and GCC
-    - $CI_PROJECT_DIR/util/memora_retry.sh get tc-llvm
-    - $CI_PROJECT_DIR/util/memora_retry.sh get tc-riscv-gcc
-    # Download bender
-    - make bender
     # Update opcodes
     - make update_opcodes
-    # Download python dependencies
-    - export PYTHON3=$(which python3.6)
-    - ${PYTHON3} -m pip install --user jsonref
-    - ${PYTHON3} -m pip install --user jsonschema
-    - ${PYTHON3} -m pip install --user jstyleson
-    - ${PYTHON3} -m pip install --user dataclasses
-    - ${PYTHON3} -m pip install --user mako
     # Compile the binaries
     - cd hw/system/spatz_cluster
     - make sw.vsim SPATZ_CLUSTER_CFG=${cfg}.hjson -B
     # Run the test
     - cd sw/build/snRuntime
     - ${CTEST} --output-on-failure
-  needs: ["tc-llvm", "tc-gcc"]
   parallel:
     matrix:
       - { cfg: spatz_cluster.default.dram }
@@ -119,119 +63,48 @@ snRuntime-test-vsim:
 snRuntime-test-vcs:
   stage: test
   script:
-    # Download LLVM and GCC
-    - $CI_PROJECT_DIR/util/memora_retry.sh get tc-llvm
-    - $CI_PROJECT_DIR/util/memora_retry.sh get tc-riscv-gcc
-    # Download bender
-    - make bender
     # Update opcodes
     - make update_opcodes
-    # Download python dependencies
-    - export PYTHON3=$(which python3.6)
-    - ${PYTHON3} -m pip install --user jsonref
-    - ${PYTHON3} -m pip install --user jsonschema
-    - ${PYTHON3} -m pip install --user jstyleson
-    - ${PYTHON3} -m pip install --user dataclasses
-    - ${PYTHON3} -m pip install --user mako
     # Compile the binaries
     - cd hw/system/spatz_cluster
-    - ${VCS} make sw.vcs SPATZ_CLUSTER_CFG=${cfg}.hjson -B
+    - make sw.vcs SPATZ_CLUSTER_CFG=${cfg}.hjson -B
     # Run the test
     - cd sw/build/snRuntime
     - ${CTEST} --output-on-failure
-  needs: ["tc-llvm", "tc-gcc"]
-  parallel:
-    matrix:
-      - { cfg: spatz_cluster.default.dram }
-      - { cfg: spatz_cluster.smallvrf.dram }
-
-snRuntime-test-vlt:
-  stage: test
-  script:
-    # Download LLVM and GCC
-    - $CI_PROJECT_DIR/util/memora_retry.sh get tc-llvm
-    - $CI_PROJECT_DIR/util/memora_retry.sh get tc-riscv-gcc
-    - $CI_PROJECT_DIR/util/memora_retry.sh get verilator
-    # Download bender
-    - make bender
-    # Update opcodes
-    - make update_opcodes
-    # Download python dependencies
-    - export PYTHON3=$(which python3.6)
-    - ${PYTHON3} -m pip install --user jsonref
-    - ${PYTHON3} -m pip install --user jsonschema
-    - ${PYTHON3} -m pip install --user jstyleson
-    - ${PYTHON3} -m pip install --user dataclasses
-    - ${PYTHON3} -m pip install --user mako
-    # Compile the binaries
-    - cd hw/system/spatz_cluster
-    - make sw.vlt SPATZ_CLUSTER_CFG=${cfg}.hjson -B
-    # Run the test
-    - cd sw/build/snRuntime
-    - ${CTEST} --output-on-failure
-  needs: ["tc-llvm", "tc-gcc", "verilator"]
   parallel:
     matrix:
       - { cfg: spatz_cluster.default.dram }
       - { cfg: spatz_cluster.smallvrf.dram }
 
 # RISC-V unit tests
-riscvTests-test-vlt:
+riscvTests-test-vsim:
   stage: test
   script:
-    # Download LLVM and GCC
-    - $CI_PROJECT_DIR/util/memora_retry.sh get tc-llvm
-    - $CI_PROJECT_DIR/util/memora_retry.sh get tc-riscv-gcc
-    - $CI_PROJECT_DIR/util/memora_retry.sh get verilator
-    # Download bender
-    - make bender
     # Update opcodes
     - make update_opcodes
-    # Download python dependencies
-    - export PYTHON3=$(which python3.6)
-    - ${PYTHON3} -m pip install --user jsonref
-    - ${PYTHON3} -m pip install --user jsonschema
-    - ${PYTHON3} -m pip install --user jstyleson
-    - ${PYTHON3} -m pip install --user dataclasses
-    - ${PYTHON3} -m pip install --user mako
     # Compile the binaries
     - cd hw/system/spatz_cluster
-    - ${VCS} make sw.vlt SPATZ_CLUSTER_CFG=${cfg}.hjson -B
+    - make sw.vsim SPATZ_CLUSTER_CFG=${cfg}.hjson -B
     # Run the test
     - cd sw/build/riscvTests
     - ${CTEST} --output-on-failure -j4
-  needs: ["tc-llvm", "tc-gcc", "verilator"]
   parallel:
     matrix:
       - { cfg: spatz_cluster.default.dram }
       - { cfg: spatz_cluster.smallvrf.dram }
 
 # Spatz tests
-spatzBenchmarks-test-vlt:
+spatzBenchmarks-test-vsim:
   stage: test
   script:
-    # Download LLVM and GCC
-    - $CI_PROJECT_DIR/util/memora_retry.sh get tc-llvm
-    - $CI_PROJECT_DIR/util/memora_retry.sh get tc-riscv-gcc
-    - $CI_PROJECT_DIR/util/memora_retry.sh get verilator
-    # Download bender
-    - make bender
     # Update opcodes
     - make update_opcodes
-    # Download python dependencies
-    - export PYTHON3=$(which python3.6)
-    - ${PYTHON3} -m pip install --user jsonref
-    - ${PYTHON3} -m pip install --user jsonschema
-    - ${PYTHON3} -m pip install --user jstyleson
-    - ${PYTHON3} -m pip install --user dataclasses
-    - ${PYTHON3} -m pip install --user mako
     # Compile the binaries
     - cd hw/system/spatz_cluster
-    - ${VCS} make sw.vlt SPATZ_CLUSTER_CFG=${cfg}.hjson -B
+    - make sw.vsim SPATZ_CLUSTER_CFG=${cfg}.hjson -B
     # Run the test
     - cd sw/build/spatzBenchmarks
     - ${CTEST} --verbose
-  needs: ["tc-llvm", "tc-gcc", "verilator"]
   parallel:
     matrix:
       - { cfg: spatz_cluster.default.dram }

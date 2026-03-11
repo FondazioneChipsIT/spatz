@@ -3,3 +3,5 @@ jsonref
 jsonschema
 jstyleson
 mako
+dataclasses
+flake8
