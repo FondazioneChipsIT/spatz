@@ -62,6 +62,22 @@ module spatz_decoder
         riscv_instr::VLSE16_V,
         riscv_instr::VLSE32_V,
         riscv_instr::VLSE64_V,
+        riscv_instr::VLSEG2E8_V,
+        riscv_instr::VLSEG2E16_V,
+        riscv_instr::VLSEG2E32_V,
+        riscv_instr::VLSEG2E64_V,
+        riscv_instr::VLSEG3E8_V,
+        riscv_instr::VLSEG3E16_V,
+        riscv_instr::VLSEG3E32_V,
+        riscv_instr::VLSEG3E64_V,
+        riscv_instr::VLSEG4E8_V,
+        riscv_instr::VLSEG4E16_V,
+        riscv_instr::VLSEG4E32_V,
+        riscv_instr::VLSEG4E64_V,
+        riscv_instr::VLSEG8E8_V,
+        riscv_instr::VLSEG8E16_V,
+        riscv_instr::VLSEG8E32_V,
+        riscv_instr::VLSEG8E64_V,
         riscv_instr::VLUXEI8_V,
         riscv_instr::VLUXEI16_V,
         riscv_instr::VLUXEI32_V,
@@ -78,6 +94,22 @@ module spatz_decoder
         riscv_instr::VSSE16_V,
         riscv_instr::VSSE32_V,
         riscv_instr::VSSE64_V,
+        riscv_instr::VSSEG2E8_V,
+        riscv_instr::VSSEG2E16_V,
+        riscv_instr::VSSEG2E32_V,
+        riscv_instr::VSSEG2E64_V,
+        riscv_instr::VSSEG3E8_V,
+        riscv_instr::VSSEG3E16_V,
+        riscv_instr::VSSEG3E32_V,
+        riscv_instr::VSSEG3E64_V,
+        riscv_instr::VSSEG4E8_V,
+        riscv_instr::VSSEG4E16_V,
+        riscv_instr::VSSEG4E32_V,
+        riscv_instr::VSSEG4E64_V,
+        riscv_instr::VSSEG8E8_V,
+        riscv_instr::VSSEG8E16_V,
+        riscv_instr::VSSEG8E32_V,
+        riscv_instr::VSSEG8E64_V,
         riscv_instr::VSUXEI8_V,
         riscv_instr::VSUXEI16_V,
         riscv_instr::VSUXEI32_V,
@@ -93,7 +125,7 @@ module spatz_decoder
           automatic logic ls_vm          = decoder_req_i.instr[25];
           automatic logic [1:0] ls_mop   = decoder_req_i.instr[27:26];
           automatic logic ls_mew         = decoder_req_i.instr[28];
-          automatic logic [2:0] ls_nf    = decoder_req_i.instr[31:29];
+          automatic nf_t ls_nf           = nf_t'(decoder_req_i.instr[31:29]);
 
           // Retrieve VSEW
           unique case ({ls_mew, ls_width})
@@ -122,6 +154,30 @@ module spatz_decoder
               spatz_req.vd             = ls_vd;
               spatz_req.use_vd         = 1'b1;
               spatz_req.rs1            = decoder_req_i.rs1;
+            end
+
+            riscv_instr::VLSEG2E8_V,
+            riscv_instr::VLSEG2E16_V,
+            riscv_instr::VLSEG2E32_V,
+            riscv_instr::VLSEG2E64_V,
+            riscv_instr::VLSEG3E8_V,
+            riscv_instr::VLSEG3E16_V,
+            riscv_instr::VLSEG3E32_V,
+            riscv_instr::VLSEG3E64_V,
+            riscv_instr::VLSEG4E8_V,
+            riscv_instr::VLSEG4E16_V,
+            riscv_instr::VLSEG4E32_V,
+            riscv_instr::VLSEG4E64_V,
+            riscv_instr::VLSEG8E8_V,
+            riscv_instr::VLSEG8E16_V,
+            riscv_instr::VLSEG8E32_V,
+            riscv_instr::VLSEG8E64_V: begin
+              spatz_req.op             = VLSEG;
+              spatz_req.op_mem.is_load = 1'b1;
+              spatz_req.vd             = ls_vd;
+              spatz_req.use_vd         = 1'b1;
+              spatz_req.rs1            = decoder_req_i.rs1;
+              spatz_req.nf             = ls_nf;
             end
 
             riscv_instr::VLSE8_V,
@@ -167,6 +223,31 @@ module spatz_decoder
               spatz_req.use_vd         = 1'b1;
               spatz_req.vd_is_src      = 1'b1;
               spatz_req.rs1            = decoder_req_i.rs1;
+            end
+
+            riscv_instr::VSSEG2E8_V,
+            riscv_instr::VSSEG2E16_V,
+            riscv_instr::VSSEG2E32_V,
+            riscv_instr::VSSEG2E64_V,
+            riscv_instr::VSSEG3E8_V,
+            riscv_instr::VSSEG3E16_V,
+            riscv_instr::VSSEG3E32_V,
+            riscv_instr::VSSEG3E64_V,
+            riscv_instr::VSSEG4E8_V,
+            riscv_instr::VSSEG4E16_V,
+            riscv_instr::VSSEG4E32_V,
+            riscv_instr::VSSEG4E64_V,
+            riscv_instr::VSSEG8E8_V,
+            riscv_instr::VSSEG8E16_V,
+            riscv_instr::VSSEG8E32_V,
+            riscv_instr::VSSEG8E64_V: begin
+              spatz_req.op             = VSSEG;
+              spatz_req.op_mem.is_load = 1'b0;
+              spatz_req.vd             = ls_vd;
+              spatz_req.use_vd         = 1'b1;
+              spatz_req.vd_is_src      = 1'b1;
+              spatz_req.rs1            = decoder_req_i.rs1;
+              spatz_req.nf             = ls_nf;
             end
 
             riscv_instr::VSSE8_V,
