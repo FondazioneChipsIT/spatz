@@ -288,10 +288,17 @@ module spatz_controller
 `endif
 
     for (int unsigned port = 0; port < NrVregfilePorts; port++) begin
+      automatic logic dep_prevent_chaining;
 `ifdef DOUBLE_BW
       // Calculate the load-store interface id to use here for chaining
       automatic logic intID;
-
+`endif
+      dep_prevent_chaining = 1'b0;
+      // flag=1 if there is a dependency with an instruction with prevent_chaining=1
+      for (int unsigned insn = 0; insn < NrParallelInstructions; insn++)
+        if (scoreboard_q[sb_id_i[port]].deps[insn] && scoreboard_q[insn].prevent_chaining)
+          dep_prevent_chaining = 1'b1;
+`ifdef DOUBLE_BW
       // For vlsu ports use the write status of the corresponding interface
       if (port inside {SB_VLSU_VS2_RD0, SB_VLSU_VD_RD0, SB_VLSU_VD_WD0}) begin
         intID = 0;
@@ -303,9 +310,9 @@ module spatz_controller
       end
 
       // Enable the VRF port if the dependant instructions wrote in the previous cycle
-      sb_enable_o[port] = sb_enable_i[port] && &(~scoreboard_q[sb_id_i[port]].deps | wrote_result_q[intID] | done_result_q[intID]) && (!(|scoreboard_q[sb_id_i[port]].deps) || !scoreboard_q[sb_id_i[port]].prevent_chaining);
+      sb_enable_o[port] = sb_enable_i[port] && &(~scoreboard_q[sb_id_i[port]].deps | wrote_result_q[intID] | done_result_q[intID]) && (!(|scoreboard_q[sb_id_i[port]].deps) || !scoreboard_q[sb_id_i[port]].prevent_chaining) && !dep_prevent_chaining;
 `else
-      sb_enable_o[port] = sb_enable_i[port] && &(~scoreboard_q[sb_id_i[port]].deps | wrote_result_q) && (!(|scoreboard_q[sb_id_i[port]].deps) || !scoreboard_q[sb_id_i[port]].prevent_chaining);
+      sb_enable_o[port] = sb_enable_i[port] && &(~scoreboard_q[sb_id_i[port]].deps | wrote_result_q) && (!(|scoreboard_q[sb_id_i[port]].deps) || !scoreboard_q[sb_id_i[port]].prevent_chaining) && !dep_prevent_chaining;
 `endif
     end
 
@@ -461,7 +468,8 @@ module spatz_controller
       end
 
       // Is this a risky instruction which should not chain?
-      if (spatz_req.op inside {VSLIDEUP, VLSE, VLXE, VSSE, VSXE})
+      // Prevent chaining if: operation is slide, indexed or strided || operation is load/store and address is not aligned || vstart is not zero
+      if (spatz_req.op inside {VSLIDEUP, VLSE, VLXE, VSSE, VSXE} || ((spatz_req.op inside {VLE, VSE}) && (spatz_req.rs1[int'(MAXEW)-1:0] != '0)) || ((spatz_req.op inside {VLE, VSE}) && (vstart_q != '0)))
         scoreboard_d[spatz_req.id].prevent_chaining = 1'b1;
 
       // Is this a narrowing or widening instruction?
