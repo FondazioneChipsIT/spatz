@@ -692,20 +692,20 @@ module spatz_vfu
       unique case (spatz_req.vtype.vsew)
         EW_8: begin
           for (int i = 0; i < N_FU*ELEN/8; i++)
-            v0_mask[8*i +: 8] = {8{reduction_operand_v0_t_q[i]}};
+            v0_mask[8*i +: 8] = {8{reduction_operand_v0_t_q[reduction_pointer_q * (N_FU*ELEN/8) + i]}};
         end
         EW_16: begin
           for (int i = 0; i < N_FU*ELEN/16; i++)
-            v0_mask[16*i +: 16] = {16{reduction_operand_v0_t_q[i]}};
+            v0_mask[16*i +: 16] = {16{reduction_operand_v0_t_q[reduction_pointer_q * (N_FU*ELEN/16) + i]}};
         end
         EW_32: begin
           for (int i = 0; i < N_FU*ELEN/32; i++)
-            v0_mask[32*i +: 32] = {32{reduction_operand_v0_t_q[i]}};
+            v0_mask[32*i +: 32] = {32{reduction_operand_v0_t_q[reduction_pointer_q * (N_FU*ELEN/32) + i]}};
         end
         default: begin
           if (MAXEW == EW_64)
             for (int i = 0; i < N_FU*ELEN/64; i++)
-              v0_mask[64*i +: 64] = {64{reduction_operand_v0_t_q[i]}};
+              v0_mask[64*i +: 64] = {64{reduction_operand_v0_t_q[reduction_pointer_q * (N_FU*ELEN/64) + i]}};
         end
       endcase
     end
