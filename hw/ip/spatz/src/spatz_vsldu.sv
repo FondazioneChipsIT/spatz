@@ -231,8 +231,8 @@ module spatz_vsldu
   `FF(vreg_counter_q, vreg_counter_d, '0)
 
   // CMY: count how many VRFWords we have already committed
-  logic [$bits(vlen_t)-5:0] verg_counter_mod32;
-  assign vreg_counter_mod32 = vreg_counter_q >> 5;
+  logic [$bits(vlen_t)-$clog2(VRFWordBWidth):0] vreg_counter_mod_wordBwidth;
+  assign vreg_counter_mod_wordBwidth = vreg_counter_q >> $clog2(VRFWordBWidth);
 
   // Are we on the first/last VRF operation?
   logic vreg_operation_first;
@@ -270,16 +270,16 @@ module spatz_vsldu
     vm_masking = '1;
     if(!spatz_req.op_sld.vm) begin
       case (spatz_req.vtype.vsew)
-        EW_8:for(int i=0;i<VLENB;i=i+1)begin
+        EW_8:for(int i=0;i<VLEN/8;i=i+1)begin
           vm_masking[i*1+:1] = {1{operand_v0_t_q[i]}};
         end
-        EW_16:for(int i=0;i<VLENB;i=i+1)begin
+        EW_16:for(int i=0;i<VLEN/16;i=i+1)begin
           vm_masking[i*2+:2] = {2{operand_v0_t_q[i]}};
         end
-        EW_32: for(int i=0;i<VLENB;i=i+1)begin
+        EW_32: for(int i=0;i<VLEN/32;i=i+1)begin
           vm_masking[i*4+:4] = {4{operand_v0_t_q[i]}};
         end
-        default: if (MAXEW == EW_64) for(int i=0;i<VLENB;i=i+1)begin
+        default: if (MAXEW == EW_64) for(int i=0;i<VLEN/64;i=i+1)begin
           vm_masking[i*8+:8] = {8{operand_v0_t_q[i]}};
         end
       endcase
@@ -527,7 +527,7 @@ module spatz_vsldu
     if (vreg_operations_finished)
       shift_overflow_d = '0;
 
-    vrf_req_d.wbe = slide_wbe & vm_masking[vreg_counter_mod32*32 +:32];
+    vrf_req_d.wbe = slide_wbe & vm_masking[vreg_counter_mod_wordBwidth*VRFWordBWidth +:VRFWordBWidth];
   end
 
   // VRF signals
