@@ -818,16 +818,16 @@ module spatz_vlsu
     vm_masking = '1; // to avoid latch
     if(!commit_insn_q.vm) begin
       case (commit_insn_q.vsew)
-        EW_8:for(int i=0;i<VLENB;i=i+1)begin
+        EW_8:for(int i=0;i<VLEN/8;i=i+1)begin
           vm_masking[i*1+:1] = {1{operand_v0_t_q[i]}};
         end
-        EW_16:for(int i=0;i<VLENB;i=i+1)begin
+        EW_16:for(int i=0;i<VLEN/16;i=i+1)begin
           vm_masking[i*2+:2] = {2{operand_v0_t_q[i]}};
         end
-        EW_32: for(int i=0;i<VLENB;i=i+1)begin
+        EW_32: for(int i=0;i<VLEN/32;i=i+1)begin
           vm_masking[i*4+:4] = {4{operand_v0_t_q[i]}};
         end
-        default: if (MAXEW == EW_64) for(int i=0;i<VLENB;i=i+1)begin
+        default: if (MAXEW == EW_64) for(int i=0;i<VLEN/64;i=i+1)begin
               // vm_masking[i*8+:8] = {8{operand_v0_t_q[/*vreg_wb_word_cnt_q  *4*/ + i]}};
           vm_masking[i*8+:8] = {8{operand_v0_t_q[i]}};
         end
