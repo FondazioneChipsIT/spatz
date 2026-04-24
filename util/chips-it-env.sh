@@ -22,7 +22,8 @@ export PYTHON=python3
 if [[ ! -x ".venv/bin/python" ]]; then
   echo "Creating venv in .venv using ${PYTHON}..."
   "${PYTHON}" -m venv ".venv" || { echo "ERROR: venv creation failed"; return 1; }
-  echo "Installing Python deps from requirements.txt into .venv"
-  .venv/bin/python -m pip install -r requirements.txt || { echo "ERROR: pip install failed"; return 1; }
-  . .venv/bin/activate
 fi
+
+echo "Installing Python deps from requirements.txt into .venv"
+.venv/bin/python -m pip install -r requirements.txt || { echo "ERROR: pip install failed"; return 1; }
+. .venv/bin/activate

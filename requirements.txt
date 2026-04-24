@@ -5,3 +5,5 @@ jstyleson
 mako
 dataclasses
 flake8
+scipy
+torch
