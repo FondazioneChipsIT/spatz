@@ -126,7 +126,6 @@ module spatz_vfu
   // Do we have the reduction operand?
   logic reduction_operand_ready_d, reduction_operand_ready_q;
 
-// CMY: Are we reading operands or v0.t?
   typedef enum logic{
     READ_OPERANDS, READ_V0_t
   } operand_state_t;
@@ -158,7 +157,6 @@ module spatz_vfu
   // Is this a FPU instruction
   logic is_fpu_insn;
   assign is_fpu_insn = FPU && spatz_req.op inside {[VFADD:VSDOTP]};
-  // FPU is defined in spart_pkg ,   localparam bit FPU            = N_FPU != 0;
 
   // Is the FPU busy?
   logic is_fpu_busy;
@@ -176,7 +174,7 @@ module spatz_vfu
   typedef enum logic [3:0] {
     Reduction_NormalExecution,
     Reduction_Wait,
-    Reduction_Read_V0_t, // CMY added a state
+    Reduction_Read_V0_t,
     Reduction_Init,
     Reduction_Reduce,
     Reduction_IntraLane,
@@ -470,6 +468,11 @@ module spatz_vfu
   logic v0_t_read_done;
   `FFLARNC(v0_t_read_done,1'b1,v0_t_is_ready,vfu_rsp_valid_o,1'b0,clk_i,rst_ni);
 
+  logic switch_to_read_v0t;
+  assign switch_to_read_v0t = (operand_state_q == READ_OPERANDS) && spatz_req_valid
+                          && !spatz_req.op_arith.is_scalar && !spatz_req.op_arith.vm
+                          && !v0_t_read_done && !spatz_req.op_arith.is_reduction;
+
   always_comb begin: operand_selection
     operand_state_d = operand_state_q;
       unique case(operand_state_q)
@@ -477,9 +480,7 @@ module spatz_vfu
           if(v0_t_is_ready) operand_state_d = READ_OPERANDS;
           else operand_state_d = operand_state_q;
         READ_OPERANDS:
-          if(spatz_req_valid && !spatz_req.op_arith.is_scalar && !spatz_req.op_arith.vm && !v0_t_read_done && !spatz_req.op_arith.is_reduction)
-            operand_state_d = READ_V0_t;
-          else operand_state_d = READ_OPERANDS;
+          operand_state_d = switch_to_read_v0t ? READ_V0_t : READ_OPERANDS;
         default: operand_state_d = operand_state_q;
       endcase
   end:operand_selection
@@ -734,7 +735,7 @@ module spatz_vfu
     endcase
 
     unique case (reduction_state_q)
-      Reduction_NormalExecution: begin // not a reduction instruction
+      Reduction_NormalExecution: begin
         // Did we issue a word to the FUs?
         word_issued = spatz_req_valid && &(in_ready | ~valid_operations) && operands_ready && !stall;
 
@@ -746,7 +747,7 @@ module spatz_vfu
 
         // Do we have a new reduction instruction?
         if (spatz_req_valid && !running_q[spatz_req.id] && spatz_req.op_arith.is_reduction)
-          reduction_state_d = (!spatz_req.op_arith.vm) ? Reduction_Read_V0_t : is_fpu_busy ? Reduction_Wait : Reduction_Init; // CMY: added Reduction_Read_V0_t state
+          reduction_state_d = (!spatz_req.op_arith.vm) ? Reduction_Read_V0_t : is_fpu_busy ? Reduction_Wait : Reduction_Init;
       end
 
       Reduction_Wait: begin
@@ -1049,9 +1050,9 @@ module spatz_vfu
 
     case(operand_state_q)
        READ_OPERANDS:begin
-        if(operand_state_d == READ_V0_t) begin
+        if(switch_to_read_v0t) begin
           vrf_raddr_o = vreg_addr_d;
-        
+
         end else if(reduction_state_q == Reduction_Read_V0_t) begin
           vreg_addr_d[0] =  0 << $clog2(NrWordsPerVector);
           vreg_addr_d[1] =  1 << $clog2(NrWordsPerVector);
@@ -1072,7 +1073,7 @@ module spatz_vfu
           // Did we commit a word already?
           if (word_issued) begin
             vreg_addr_d[0] = vreg_addr_d[0] + (!spatz_req.op_arith.widen_vs2 || widening_upper_q);
-            vreg_addr_d[1] = vreg_addr_d[1] + (!spatz_req.op_arith.widen_vs1 || widening_upper_q); // if it is a widening operands, addr shouldn't add when reading the upper part.
+            vreg_addr_d[1] = vreg_addr_d[1] + (!spatz_req.op_arith.widen_vs1 || widening_upper_q);
             vreg_addr_d[2] = vreg_addr_d[2] + (!spatz_req.op_arith.is_reduction && (!spatz_req.op_arith.is_narrowing || narrowing_upper_q) && (spatz_req.op != VFCMP));
           end
           end else if (spatz_req_valid && vl_q < spatz_req.vl && word_issued) begin
@@ -1098,7 +1099,7 @@ module spatz_vfu
     unique case(operand_state_q)
       READ_V0_t: vreg_r_req = 3'b011;
       READ_OPERANDS: begin
-        if (operand_state_d == READ_V0_t) begin
+        if (switch_to_read_v0t) begin
           vreg_r_req = '0;  // avoid unuseful read
         end
         else if(reduction_state_q == Reduction_Read_V0_t) vreg_r_req = 3'b011;
@@ -1391,7 +1392,7 @@ assign vfcmp_result_accepted = (spatz_req.op == VFCMP) && &(result_valid | ~pend
 
       // Store results
       int_ipu_result_ready = '0;
-      if (&int_ipu_result_valid) begin // all bytes are valid
+      if (&int_ipu_result_valid) begin
         ipu_result_d[ipu_result_pnt_q*ELEN*N_IPU +: ELEN*N_IPU]         = int_ipu_result;
         ipu_result_valid_d[ipu_result_pnt_q*ELENB*N_IPU +: ELENB*N_IPU] = int_ipu_result_valid;
         ipu_result_tag_d                                                = int_ipu_result_tag[0];
@@ -1539,7 +1540,7 @@ assign vfcmp_result_accepted = (spatz_req.op == VFCMP) && &(result_valid | ~pend
       `FFL(rm_q, (spatz_req.op == VFCMP && spatz_req.rm == fpnew_pkg::RUP) ? fpnew_pkg::RDN : spatz_req.rm, int_fpu_in_valid && int_fpu_in_ready, fpnew_pkg::RNE)
       `FFL(input_tag_q, input_tag, int_fpu_in_valid && int_fpu_in_ready, '{vsew: EW_8, default: '0})
       `FFL(fpu_in_valid_q, int_fpu_in_valid, int_fpu_in_ready, 1'b0)
-      assign int_fpu_in_ready = !fpu_in_valid_q || fpu_in_valid_q && fpu_in_ready_d; // no data is to be sent to FPU or data is to be sent and FPU is ready
+      assign int_fpu_in_ready = !fpu_in_valid_q || fpu_in_valid_q && fpu_in_ready_d;
 
       fpnew_top #(
         .Features                   (FPUFeatures           ),
