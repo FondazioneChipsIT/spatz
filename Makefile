@@ -22,6 +22,23 @@ all: bender toolchain update_opcodes
 # Target for IIS/Chips-IT users
 init: bender update_opcodes
 
+##############
+#  SW Tests  #
+##############
+
+SPATZ_CLUSTER_DIR := ${ROOT_DIR}/hw/system/spatz_cluster
+SPATZ_CLUSTER_CFG ?= spatz_cluster.32b.dram.hjson
+
+## Compile riscvTests without bender or RTL simulator.
+## Usage: make sw.tests [-B] [SPATZ_CLUSTER_CFG=<cfg.hjson>]
+.PHONY: sw.tests
+sw.tests:
+	$(MAKE) -C ${SPATZ_CLUSTER_DIR} sw.tests SPATZ_CLUSTER_CFG=${SPATZ_CLUSTER_CFG}
+
+.PHONY: clean.sw.tests
+clean.sw.tests:
+	$(MAKE) -C ${SPATZ_CLUSTER_DIR} clean.sw.tests
+
 ###############
 #  Toolchain  #
 ###############

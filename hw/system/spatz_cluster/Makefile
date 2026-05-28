@@ -235,6 +235,44 @@ lint/tmp/files: ${BENDER}
 # SW #
 ######
 
+# Toolchain paths used by sw.tests (no RTL simulator required).
+# Override on the command line if your toolchain is in a different location.
+SW_TESTS_LLVM_PATH ?= /home/gvsoc/Documents/toolchain/llvm
+SW_TESTS_GCC_PATH  ?= /home/gvsoc/Documents/toolchain/gcc_spatz
+
+RISCV_OPCODES        := ${ROOT}/sw/toolchain/riscv-opcodes
+RISCV_OPCODES_COMMIT := $(shell cat ${ROOT}/sw/toolchain/riscv-opcodes.version)
+
+# Clone riscv-opcodes at the pinned commit if not already present.
+# encoding.h is committed in the repo; encoding_out.h is a symlink to it.
+${RISCV_OPCODES}/encoding.h:
+	cd ${ROOT}/sw/toolchain && \
+	git clone https://github.com/pulp-platform/riscv-opcodes.git riscv-opcodes
+	cd ${RISCV_OPCODES} && git checkout ${RISCV_OPCODES_COMMIT}
+	ln -sf encoding.h ${RISCV_OPCODES}/encoding_out.h
+
+## Compile riscvTests without requiring bender or an RTL simulator.
+## Usage: make sw.tests [-B] [SPATZ_CLUSTER_CFG=<cfg.hjson>]
+##        Optionally override toolchain: SW_TESTS_LLVM_PATH=... SW_TESTS_GCC_PATH=...
+.PHONY: sw.tests
+sw.tests: ${RISCV_OPCODES}/encoding.h
+	mkdir -p sw/build_tests
+	cd sw/build_tests && ${CMAKE} \
+		-DCMAKE_TOOLCHAIN_FILE=${ROOT}/sw/cmake/toolchain-llvm.cmake \
+		-DLLVM_PATH=${SW_TESTS_LLVM_PATH} \
+		-DGCC_PATH=${SW_TESTS_GCC_PATH} \
+		-DPYTHON=${PYTHON} \
+		-DBUILD_TESTS=ON \
+		-DSPATZ_CLUSTER_CFG=${SPATZ_CLUSTER_CFG} \
+		${SPATZ_CLUSTER_CFG_DEFINES} \
+		${ROOT}/sw/riscvTests && \
+	$(MAKE) -j$(shell nproc)
+
+## Delete sw/build_tests
+.PHONY: clean.sw.tests
+clean.sw.tests:
+	rm -rf sw/build_tests
+
 ## Build SW into sw/build with the LLVM toolchain
 sw: clean.sw spatz.gendata
 	mkdir -p sw/build
@@ -279,7 +317,7 @@ clean.sw:
 ########
 
 ## Clean everything except logs
-clean: clean.vcs clean.vlt clean.vsim clean.sw
+clean: clean.vcs clean.vlt clean.vsim clean.sw clean.sw.tests
 	rm -rf Bender.lock .bender/ work/
 
 clean.logs:

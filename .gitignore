@@ -25,3 +25,4 @@ mems
 *.o
 install
 .projectBender.lock
+hw/system/spatz_cluster/sw/build_tests/
