@@ -96,6 +96,25 @@ make bin/spatz_cluster.vlt CFG=cfg/spatz_cluster.default.hjson
 
 The default config is in `cfg/spatz_cluster.default.hjson`. Alternatively, you can also set your `CFG` environment variable, the Makefile will pick it up and override the standard config.
 
+### CHIPS-IT simulation flow example
+```bash
+
+source util/chips-it-env.sh
+make init
+cd hw/system/spatz_cluster
+
+make clean.vsim
+make sw.vsim -B SPATZ_CLUSTER_CFG=spatz_cluster.32b.dram.hjson
+#alternatively:
+make clean.vcs
+make sw.vcs -B SPATZ_CLUSTER_CFG=spatz_cluster.32b.dram.hjson
+
+bin/spatz_cluster.vsim.gui sw/build/riscvTests/test-riscvTests-vls
+#alternatively:
+bin/spatz_cluster.vcs.gui sw/build/riscvTests/test-riscvTests-vls
+
+```
+
 ## Architecture
 
 ### Spatz cluster
