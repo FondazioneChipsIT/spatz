@@ -18,7 +18,7 @@ package spatz_cluster_pkg;
   ///////////
 
   // AXI Data Width
-  localparam int unsigned SpatzAxiDataWidth = 512;
+  localparam int unsigned SpatzAxiDataWidth = 256;
   localparam int unsigned SpatzAxiStrbWidth = SpatzAxiDataWidth / 8;
   // AXI Address Width
   localparam int unsigned SpatzAxiAddrWidth = 32;
@@ -30,7 +30,7 @@ package spatz_cluster_pkg;
   localparam int unsigned SpatzAxiUserWidth = 2;
 
   // Narrow AXI Data width
-  localparam int unsigned SpatzNarrowAxiDataWidth = 64;
+  localparam int unsigned SpatzNarrowAxiDataWidth = 32;
 
   typedef logic [SpatzAxiDataWidth-1:0] axi_data_t;
   typedef logic [SpatzAxiStrbWidth-1:0] axi_strb_t;
@@ -50,7 +50,7 @@ package spatz_cluster_pkg;
   //  Spatz Cluster //
   ////////////////////
 
-  localparam int unsigned NumCores = 2;
+  localparam int unsigned NumCores = 1;
 
   localparam int unsigned ICacheLineWidth = 256;
   localparam int unsigned ICacheLineCount = 64;
@@ -113,12 +113,12 @@ package spatz_cluster_pkg;
                        fpnew_pkg::MERGED,
                        fpnew_pkg::MERGED,
                        fpnew_pkg::MERGED},  // FMA
-                    '{fpnew_pkg::DISABLED,
-                        fpnew_pkg::DISABLED,
-                        fpnew_pkg::DISABLED,
-                        fpnew_pkg::DISABLED,
-                        fpnew_pkg::DISABLED,
-                        fpnew_pkg::DISABLED}, // DIVSQRT
+                    '{fpnew_pkg::MERGED,
+                        fpnew_pkg::MERGED,
+                        fpnew_pkg::MERGED,
+                        fpnew_pkg::MERGED,
+                        fpnew_pkg::MERGED,
+                        fpnew_pkg::MERGED}, // DIVSQRT
                     '{fpnew_pkg::PARALLEL,
                         fpnew_pkg::PARALLEL,
                         fpnew_pkg::PARALLEL,
@@ -131,75 +131,13 @@ package spatz_cluster_pkg;
                         fpnew_pkg::MERGED,
                         fpnew_pkg::MERGED,
                         fpnew_pkg::MERGED},   // CONV
-                    '{fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED}},  // DOTP
-        PipeConfig: fpnew_pkg::BEFORE
-    },
-    '{
-        PipeRegs: // FMA Block
-                  '{
-                    '{  1, // FP32
-                        2, // FP64
-                        0, // FP16
-                        0, // FP8
-                        0, // FP16alt
-                        0  // FP8alt
-                      },
-                    '{1, 1, 1, 1, 1, 1},   // DIVSQRT
-                    '{1,
-                      1,
-                      1,
-                      1,
-                      1,
-                      1},   // NONCOMP
-                    '{2,
-                      2,
-                      2,
-                      2,
-                      2,
-                      2},   // CONV
-                    '{2,
-                      2,
-                      2,
-                      2,
-                      2,
-                      2}    // DOTP
-                    },
-        UnitTypes: '{'{fpnew_pkg::MERGED,
-                       fpnew_pkg::MERGED,
-                       fpnew_pkg::MERGED,
-                       fpnew_pkg::MERGED,
-                       fpnew_pkg::MERGED,
-                       fpnew_pkg::MERGED},  // FMA
                     '{fpnew_pkg::DISABLED,
                         fpnew_pkg::DISABLED,
                         fpnew_pkg::DISABLED,
                         fpnew_pkg::DISABLED,
                         fpnew_pkg::DISABLED,
-                        fpnew_pkg::DISABLED}, // DIVSQRT
-                    '{fpnew_pkg::PARALLEL,
-                        fpnew_pkg::PARALLEL,
-                        fpnew_pkg::PARALLEL,
-                        fpnew_pkg::PARALLEL,
-                        fpnew_pkg::PARALLEL,
-                        fpnew_pkg::PARALLEL}, // NONCOMP
-                    '{fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED},   // CONV
-                    '{fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED}},  // DOTP
-        PipeConfig: fpnew_pkg::BEFORE
+                        fpnew_pkg::DISABLED}}, // DOTP
+        PipeConfig: fpnew_pkg::DISTRIBUTED
     }
   };
 
@@ -238,12 +176,12 @@ module spatz_cluster_wrapper
   input  axi_out_resp_t axi_out_resp_i
 );
 
-  localparam int unsigned NumIntOutstandingLoads   [NumCores] = '{1, 1};
-  localparam int unsigned NumIntOutstandingMem     [NumCores] = '{4, 4};
-  localparam int unsigned NumSpatzOutstandingLoads [NumCores] = '{4, 4};
-  localparam int unsigned NumSpatzFPUs             [NumCores] = '{default: 4};
+  localparam int unsigned NumIntOutstandingLoads   [NumCores] = '{1};
+  localparam int unsigned NumIntOutstandingMem     [NumCores] = '{4};
+  localparam int unsigned NumSpatzOutstandingLoads [NumCores] = '{4};
+  localparam int unsigned NumSpatzFPUs             [NumCores] = '{default: 8};
   localparam int unsigned NumSpatzIPUs             [NumCores] = '{default: 1};
-  localparam int unsigned NumSpatzTCDMPorts        [NumCores] = '{default: 4};
+  localparam int unsigned NumSpatzTCDMPorts        [NumCores] = '{default: 8};
 
   typedef logic [IwcAxiIdOutWidth-1:0] axi_id_out_iwc_t;
 
@@ -289,8 +227,8 @@ module spatz_cluster_wrapper
     .NarrowAXIDataWidth (SpatzNarrowAxiDataWidth),
     .BootAddr (32'h1000),
     .ClusterPeriphSize (64),
-    .NrCores (2),
-    .TCDMDepth (1024),
+    .NrCores (1),
+    .TCDMDepth (2048),
     .TCDMSize (TCDMSize),
     .NrBanks (16),
     .ICacheLineWidth (spatz_cluster_pkg::ICacheLineWidth),
@@ -309,7 +247,7 @@ module spatz_cluster_wrapper
     .axi_in_resp_t (axi_in_resp_t),
     .axi_out_req_t (spatz_axi_iwc_out_req_t),
     .axi_out_resp_t (spatz_axi_iwc_out_resp_t),
-    .Xdma (2'b01),
+    .Xdma (1'b1),
     .DMAAxiReqFifoDepth (3),
     .DMAReqFifoDepth (3),
     .RegisterOffloadRsp (1),
