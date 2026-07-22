@@ -215,6 +215,54 @@ bin/spatz_cluster.vsim: ${VSIM_BUILDDIR}/compile.vsim.tcl work/lib/libfesvr_vsim
 clean.vsim:
 	rm -rf bin/spatz_cluster.vsim bin/spatz_cluster.vsim.gui work-vsim work vsim.wlf vish_stacktrace.vstf transcript
 
+########
+# XRUN #
+########
+XRUN_BUILDDIR = work-xrun
+XRUN_HOME ?= $(shell xmroot)
+XRUN_CXXFLAGS += -Wcxx,-o2,-std=c++17,-I${ROOT}/hw/system/spatz_cluster/test,-I${ROOT}/hw/system/spatz_cluster/work/include,-I${TB_DIR}
+XRUN_CFLAGS += -Wcc,-I${ROOT}/hw/system/spatz_cluster/test
+XRUN_LDFLAGS += -Wld,-l:libfesvr_xrun.a,-L${FESVR}/lib
+
+XRUN_FLAGS += -64bit
+XRUN_FLAGS += -elaborate
+XRUN_FLAGS += -allowredefinition
+XRUN_FLAGS += -glsperf
+XRUN_FLAGS += -timescale 1ns/1ns
+XRUN_FLAGS += -vtimescale 1ns/1ns
+XRUN_FLAGS += -enable_inout_out_def_arg
+XRUN_FLAGS += -access +r
+XRUN_FLAGS += -enable_archive_search
+XRUN_FLAGS += -top tb_bin
+XRUN_FLAGS += ${XRUN_LDFLAGS}
+XRUN_FLAGS += ${XRUN_CXXFLAGS}
+XRUN_FLAGS += ${XRUN_CFLAGS}
+
+TB_CCSRC += ${TB_DIR}/rtl_lib.cc
+TB_CCSRC += ${TB_DIR}/common_lib.cc
+TB_CCSRC += ${ROOT}/hw/system/spatz_cluster/test/bootdata.cc
+TB_CCSRC += ${ROOT}/hw/system/spatz_cluster/test/uartdpi/uartdpi.c
+
+TEST ?= ${ROOT}/hw/system/spatz_cluster/sw/build/riscvTests/test-riscvTests-invalid
+
+${XRUN_BUILDDIR}/flist:
+	mkdir -p work-xrun
+	${BENDER} script flist-plus ${VSIM_BENDER} ${DEFS} > $@
+
+${XRUN_BUILDDIR}/xcelium.d: ${XRUN_BUILDDIR}/flist work/lib/libfesvr_xrun.a ${TB_CSRC} test/bootrom.bin
+	@cd ${XRUN_BUILDDIR}; xrun ${XRUN_FLAGS} -sv -f flist ${TB_CCSRC}
+
+sim.xrun: ${XRUN_BUILDDIR}/xcelium.d
+	@cd ${XRUN_BUILDDIR}; xrun +permissive -64 -R +permissive-off ++$(shell realpath ${TEST})
+
+sim.xrun.gui: ${XRUN_BUILDDIR}/xcelium.d test/bootrom.bin
+	@cd ${XRUN_BUILDDIR}; xrun +permissive -64 -R -gui +permissive-off ++$(shell realpath ${TEST})
+
+clean.xrun:
+	rm -rf work-xrun work
+
+.PHONY: clean.xrun sim.xrun sim.xrun.gui
+
 #######
 # VCS #
 #######
