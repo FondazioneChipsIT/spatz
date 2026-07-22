@@ -737,9 +737,9 @@ module spatz_controller
     spatz_req.id          = next_insn_id;
 `ifdef VENTAGLIO
     spatz_req_vtl_illegal = !vtl_en_q && decoder_rsp.spatz_req.op_vtl.use_vtl; // illegal if vtl is disabled but used
-    spatz_req_illegal     = !decoder_rsp_valid || decoder_rsp.instr_illegal || spatz_req_vtl_illegal || ((buffer_spatz_req.ex_unit != CON) && vtype_q.vill);
+    spatz_req_illegal     = decoder_rsp_valid ? decoder_rsp.instr_illegal || spatz_req_vtl_illegal : 1'b0;
 `else
-    spatz_req_illegal     = !decoder_rsp_valid || decoder_rsp.instr_illegal || ((buffer_spatz_req.ex_unit != CON) && vtype_q.vill);
+    spatz_req_illegal     = decoder_rsp_valid ? decoder_rsp.instr_illegal : 1'b0;
 `endif
     spatz_req_valid       = req_buffer_pop && !spatz_req_illegal && (!running_insn_full);
 
