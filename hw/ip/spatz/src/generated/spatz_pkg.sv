@@ -18,7 +18,7 @@ package spatz_pkg;
   // Number of IPUs in each VFU (between 1 and 8)
   localparam int unsigned N_IPU = 1;
   // Number of FPUs in each VFU (between 1 and 8)
-  localparam int unsigned N_FPU = 4;
+  localparam int unsigned N_FPU = 8;
   // Number of FUs in each VFU
   localparam int unsigned N_FU  = N_IPU > N_FPU ? N_IPU : N_FPU;
   // FPU support
@@ -26,7 +26,7 @@ package spatz_pkg;
   // Single-precision floating point support
   localparam bit RVF            = 1;
   // Double-precision floating-point support
-  localparam bit RVD            = 1;
+  localparam bit RVD            = 0;
   // Vector support
   localparam bit RVV            = 1;
 
@@ -95,6 +95,10 @@ package spatz_pkg;
   typedef logic [VFURespAddrWidth-1:0] vfu_rsp_addr_t;
   typedef logic [N_FU*ELENB-1:0] vrf_be_t;
   typedef logic [N_FU*ELEN-1:0] vrf_data_t;
+  // ELEN = 64
+  // The VRF is centralized and serves all functional units.
+  // Each VRF port is 64F-bit wide. F denotes the number of FPUs.
+  // the FU here doesn't refer to Functioan Units. N_FU=max{N_IPU,N_FPU}
 
   // Instruction ID
   typedef logic [$clog2(NrParallelInstructions)-1:0] spatz_id_t;
@@ -132,7 +136,7 @@ package spatz_pkg;
     // VCSR
     VCSR,
     // Floating point instructions
-    VFADD, VFSUB, VFMUL,
+    VFADD, VFDIV, VFSQRT, VFSUB, VFMUL,
     VFMINMAX, VFSGNJ, VFCMP, VFCLASS,
     VF2I, VF2U, VI2F, VU2F, VF2F,
     VFMADD, VFMSUB, VFNMSUB, VFNMADD, VSDOTP
@@ -343,7 +347,7 @@ package spatz_pkg;
   /////////////////////////
 
   // No support for floating-point division and square-root for now
-  localparam bit FDivSqrt = 1'b0;
+  localparam bit FDivSqrt = 1'b1;
 
   localparam int unsigned FLEN = RVD ? 64 : 32;
 
@@ -361,12 +365,12 @@ package spatz_pkg;
   // Single Precision FPU
   '{
     Width        : ELEN,
-    EnableVectors: 1'b1,
+    EnableVectors: 1'b0,
     EnableNanBox : 1'b1,
     //              FP32  FP64  FP16  FP8   FP16a FP8a
-    FpFmtMask    : {RVF,  1'b0, 1'b1, 1'b1, 1'b0, 1'b0},
+    FpFmtMask    : {RVF,  1'b0, 1'b1, 1'b0, 1'b0, 1'b0},
     //              INT8  INT16 INT32 INT64
-    IntFmtMask   : {1'b1, 1'b1, 1'b1, 1'b0}
+    IntFmtMask   : {1'b0, 1'b10, 1'b1, 1'b0}
   };
 
   // FP format conversion

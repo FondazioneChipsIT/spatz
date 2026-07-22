@@ -161,7 +161,7 @@ package spatz_pkg;
     // VCSR
     VCSR,
     // Floating point instructions
-    VFADD, VFSUB, VFMUL,
+    VFADD, VFDIV, VFSQRT, VFSUB, VFMUL,
     VFMINMAX, VFSGNJ, VFCMP, VFCLASS,
     VF2I, VF2U, VI2F, VU2F, VF2F,
     VFMADD, VFMSUB, VFNMSUB, VFNMADD, VSDOTP
@@ -414,7 +414,7 @@ package spatz_pkg;
   /////////////////////////
 
   // No support for floating-point division and square-root for now
-  localparam bit FDivSqrt = 1'b0;
+  localparam bit FDivSqrt = 1'b1;
 
   localparam int unsigned FLEN = RVD ? 64 : 32;
 
@@ -432,12 +432,12 @@ package spatz_pkg;
   // Single Precision FPU
   '{
     Width        : ELEN,
-    EnableVectors: 1'b1,
+    EnableVectors: 1'b0,
     EnableNanBox : 1'b1,
     //              FP32  FP64  FP16  FP8   FP16a FP8a
-    FpFmtMask    : {RVF,  1'b0, 1'b1, 1'b1, 1'b0, 1'b0},
+    FpFmtMask    : {RVF,  1'b0, 1'b0, 1'b0, 1'b0, 1'b0},
     //              INT8  INT16 INT32 INT64
-    IntFmtMask   : {1'b1, 1'b1, 1'b1, 1'b0}
+    IntFmtMask   : {1'b0, 1'b0, 1'b1, 1'b0}
   };
 
 % if cfg['mempool']:

@@ -65,8 +65,7 @@ module spatz_vsldu
     unique case (spatz_req.vtype.vsew)
       EW_8 : rs1_masked = vrf_data_t'(spatz_req.rs1[7:0]);
       EW_16: rs1_masked = vrf_data_t'(spatz_req.rs1[15:0]);
-      EW_32: rs1_masked = vrf_data_t'(spatz_req.rs1[31:0]);
-      default: rs1_masked = vrf_data_t'(spatz_req.rs1[63:0]);  // EW_64
+      default : rs1_masked = vrf_data_t'(spatz_req.rs1[31:0]);
     endcase
   end
 

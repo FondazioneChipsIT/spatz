@@ -152,3 +152,42 @@ hw/ip/snitch/src/riscv_instr.sv: sw/toolchain/riscv-opcodes
 sw/toolchain/riscv-opcodes/encoding.h:
 	MY_OPCODES=$(OPCODES) make -C sw/toolchain/riscv-opcodes all
 	cp sw/toolchain/riscv-opcodes/encoding_out.h $@
+
+
+########
+# TECH #
+########
+
+include tech.mk
+
+# Forward the used memory macros to the back-end scripts
+SYN_PARAM += set LIBRARIES [list ${LIBRARIES}];\
+			set MEMCUTS [list ${REGFILECUTS_LVT} ${REGFILECUTS_RVT} ${SRAMCUTS}]
+
+PNR_PARAM += set LIBRARIES [list ${LIBRARIES}];\
+			set TECHFILE ${TECHFILE};\
+			set METR_FILE_LEF ${METR_FILE_LEF};\
+			set COLORMAP_FILE ${COLORMAP_FILE};\
+			set MEMCUTS [list ${REGFILECUTS_LVT} ${REGFILECUTS_RVT} ${SRAMCUTS}]
+
+
+#############
+# Synthesys #
+#############
+
+bender_synth: 
+	bender script synopsys -t rtl -t gf12 -t asic -t spatz_cluster_wrapper -t spatz > ./synth_scripts/synth_spatz.tcl
+
+synth_run: 
+	dcnxt_shell -x "${SYN_PARAM}; source synth_scripts/spatz_cluster_SY.tcl"
+
+synth_run_topo:
+	dcnxt_shell -topographical_mode -x "${SYN_PARAM}; set TOPO 1; source synth_scripts/spatz_cluster_SY.tcl"
+
+#############
+# Floorplan #
+#############
+
+floorplan_run:
+	cd innovus/  && \
+	innovus -overwrite -execute "${PNR_PARAM}; source scripts/spatz_cluster_wrapper/spatz_cluster.tcl"

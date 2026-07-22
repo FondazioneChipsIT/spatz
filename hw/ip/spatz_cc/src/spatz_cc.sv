@@ -58,7 +58,7 @@ module spatz_cc
     /// Enable F and D Extension
     parameter bit                                          RVF                      = 1,
     parameter bit                                          RVD                      = 1,
-    parameter bit                                          XDivSqrt                 = 0,
+    parameter bit                                          XDivSqrt                 = 1,
     parameter bit                                          XF8                      = 0,
     parameter bit                                          XF16                     = 0,
     parameter bit                                          XF16ALT                  = 0,

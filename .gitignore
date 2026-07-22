@@ -25,3 +25,20 @@ mems
 *.o
 install
 .projectBender.lock
+WORK
+alib-52
+.venv
+nonfree
+reports
+out
+technology
+moduleparamid
+default*
+ndm*
+tech.mk
+constraints
+sourcecode
+
+# Avoid innovus folder
+innovus/
+synth_scripts/

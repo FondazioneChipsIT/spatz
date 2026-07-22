@@ -279,13 +279,25 @@ module spatz_vfu
 
     // Finished the execution!
     if (spatz_req_valid && ((vl_d >= spatz_req.vl && !spatz_req.op_arith.is_reduction) || reduction_done)) begin
-      spatz_req_ready         = spatz_req_valid;
-      busy_d                  = 1'b0;
-      vl_d                    = '0;
-      last_request            = 1'b1;
-      running_d[spatz_req.id] = 1'b0;
-      widening_upper_d        = 1'b0;
-      narrowing_upper_d       = 1'b0;
+      if(spatz_req.op == VFDIV)begin
+          last_request            = 1'b1;
+        if(result_tag.last)begin
+          spatz_req_ready         = spatz_req_valid;
+          busy_d                  = 1'b0;
+          vl_d                    = '0;
+          running_d[spatz_req.id] = 1'b0;
+          widening_upper_d        = 1'b0;
+          narrowing_upper_d       = 1'b0;
+        end
+      end else begin
+        spatz_req_ready         = spatz_req_valid;
+        busy_d                  = 1'b0;
+        vl_d                    = '0;
+        last_request            = 1'b1;
+        running_d[spatz_req.id] = 1'b0;
+        widening_upper_d        = 1'b0;
+        narrowing_upper_d       = 1'b0;
+      end
     end
     // Do we have a new instruction?
     else if (spatz_req_valid && !running_d[spatz_req.id]) begin
@@ -421,6 +433,8 @@ module spatz_vfu
           end
 
           VSDOTP: fpu_op = fpnew_pkg::SDOTP;
+          VFDIV:  fpu_op = fpnew_pkg::DIV;
+          VFSQRT:  fpu_op = fpnew_pkg::SQRT;
 
           default:;
         endcase
@@ -541,7 +555,7 @@ module spatz_vfu
   assign result       = state_q == VFU_RunningIPU ? ipu_result       : fpu_result;
   assign result_valid = state_q == VFU_RunningIPU ? ipu_result_valid : fpu_result_valid;
 
-  assign scalar_result = result[ELEN-1:0];
+  assign scalar_result = (spatz_req.op_arith.is_scalar || result_tag.last) ? result[ELEN-1:0] : '0;
 
   `FFL(operand_v0_t_lo_q, operand_v0_t_lo, v0_t_is_ready, '0)
   `FFL(operand_v0_t_hi_q, operand_v0_t_hi, v0_t_is_ready, '0)

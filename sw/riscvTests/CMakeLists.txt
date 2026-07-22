@@ -128,6 +128,7 @@ add_snitch_test(vfredusum isa/rv64uv/vfredusum.c)
 
 add_snitch_test(vfwadd   isa/rv64uv/vfwadd.c)
 add_snitch_test(vfwsub   isa/rv64uv/vfwsub.c)
+add_snitch_test(vfdiv    isa/rv64uv/vfdiv.c)
 add_snitch_test(vfwmul   isa/rv64uv/vfwmul.c)
 add_snitch_test(vfwmacc  isa/rv64uv/vfwmacc.c)
 add_snitch_test(vfwmsac  isa/rv64uv/vfwmsac.c)

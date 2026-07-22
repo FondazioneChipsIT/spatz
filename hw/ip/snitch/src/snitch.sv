@@ -33,7 +33,7 @@ module snitch import snitch_pkg::*; import riscv_instr::*; #(
   parameter bit          XF8       = 0,
   parameter bit          XF8ALT    = 0,
   /// Enable div/sqrt unit (buggy - use with caution)
-  parameter bit          XDivSqrt  = 0,
+  parameter bit          XDivSqrt  = 1,
   /// Enable V Extension
   parameter bit          RVV       = 0,
   parameter bit          XFVEC     = 0,
@@ -2429,6 +2429,8 @@ module snitch import snitch_pkg::*; import riscv_instr::*; #(
           illegal_inst = 1'b1;
         end
       end
+      riscv_instr::VFSQRT_V,
+      riscv_instr::VFDIV_VV,
       riscv_instr::VFADD_VV,
       riscv_instr::VFSUB_VV,
       riscv_instr::VFMIN_VV,
@@ -2552,6 +2554,7 @@ module snitch import snitch_pkg::*; import riscv_instr::*; #(
           illegal_inst = 1'b1;
         end
       end
+      riscv_instr::VFDIV_VF,
       riscv_instr::VFADD_VF,
       riscv_instr::VFSUB_VF,
       riscv_instr::VFMIN_VF,
