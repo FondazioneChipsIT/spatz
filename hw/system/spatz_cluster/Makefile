@@ -247,15 +247,16 @@ TEST ?= ${ROOT}/hw/system/spatz_cluster/sw/build/riscvTests/test-riscvTests-inva
 
 ${XRUN_BUILDDIR}/flist:
 	mkdir -p work-xrun
-	${BENDER} script flist-plus ${VSIM_BENDER} ${DEFS} > $@
+	# these sed commands remove some files wich would cause errors during elaboration
+	${BENDER} script flist-plus ${VSIM_BENDER} ${DEFS} | sed /tb_apb/d | sed /tb_axi_iw/d > $@
 
-${XRUN_BUILDDIR}/xcelium.d: ${XRUN_BUILDDIR}/flist work/lib/libfesvr_xrun.a ${TB_CSRC} test/bootrom.bin
+${XRUN_BUILDDIR}/xcelium.d: test/bootrom.bin ${XRUN_BUILDDIR}/flist work/lib/libfesvr_xrun.a ${TB_CSRC} test/bootrom.bin
 	@cd ${XRUN_BUILDDIR}; xrun ${XRUN_FLAGS} -sv -f flist ${TB_CCSRC}
 
 sim.xrun: ${XRUN_BUILDDIR}/xcelium.d
 	@cd ${XRUN_BUILDDIR}; xrun +permissive -64 -R +permissive-off ++$(shell realpath ${TEST})
 
-sim.xrun.gui: ${XRUN_BUILDDIR}/xcelium.d test/bootrom.bin
+sim.xrun.gui: ${XRUN_BUILDDIR}/xcelium.d
 	@cd ${XRUN_BUILDDIR}; xrun +permissive -64 -R -gui +permissive-off ++$(shell realpath ${TEST})
 
 clean.xrun:
