@@ -18,6 +18,7 @@ echo "Load Bender $BENDER_VERSION environment for Chips-IT"
 module load bender/$BENDER_VERSION
 export BENDER_INSTALL_DIR=/tools/utils/bender_$BENDER_VERSION
 
+module add xcelium
 
 export PYTHON=python3.8
 if [[ ! -x ".venv/bin/python" ]]; then

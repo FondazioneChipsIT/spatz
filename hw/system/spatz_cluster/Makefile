@@ -220,7 +220,7 @@ clean.vsim:
 ########
 XRUN_BUILDDIR = work-xrun
 XRUN_HOME ?= $(shell xmroot)
-XRUN_CXXFLAGS += -Wcxx,-o2,-std=c++17,-I${ROOT}/hw/system/spatz_cluster/test,-I${ROOT}/hw/system/spatz_cluster/work/include,-I${TB_DIR}
+XRUN_CXXFLAGS += -Wcxx,-std=c++17,-I${ROOT}/hw/system/spatz_cluster/test,-I${ROOT}/hw/system/spatz_cluster/work/include,-I${TB_DIR}
 XRUN_CFLAGS += -Wcc,-I${ROOT}/hw/system/spatz_cluster/test
 XRUN_LDFLAGS += -Wld,-l:libfesvr_xrun.a,-L${FESVR}/lib
 
