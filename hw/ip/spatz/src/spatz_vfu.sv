@@ -100,13 +100,7 @@ module spatz_vfu
 
   // Number of elements in one VRF word
   logic [$clog2(N_FU*(ELEN/8)):0] nr_elem_word;
-  logic [$clog2((ELEN/8)):0] nr_elem_word_divsqrt;
   assign nr_elem_word = (N_FU * (1 << (MAXEW - spatz_req.vtype.vsew))) >> spatz_req.op_arith.is_narrowing;
-
-  logic is_divsqrt_insn;
-  assign is_divsqrt_insn = spatz_req.op inside {VFDIV, VFSQRT};
-
-  assign nr_elem_word_divsqrt = (1 << (MAXEW - spatz_req.vtype.vsew));
 
   // Are we running integer or floating-point instructions?
   typedef enum logic {
@@ -223,9 +217,6 @@ module spatz_vfu
   logic                  result_ready;
 
   logic [$clog2(N_FU)-1:0] divsqrt_slot_q, divsqrt_slot_d;
-  logic last_divsqrt;
-
-  assign last_divsqrt = is_divsqrt_insn ? ((vl_q + (divsqrt_slot_q+1)*(nr_elem_word_divsqrt)) >= spatz_req.vl) : 1'b0;
 
   // it represents the VRF word index
   logic [$clog2(NrWordsPerVector):0] word_idx_d, word_idx_q;

@@ -1,8 +1,8 @@
 # Author: Riccardo Giunti, Fondazione Chips-IT
 
 echo "Export Spatz toolchains for Chips-IT"
-export LLVM_INSTALL_DIR=/opt/riscv/spatz-14-llvm
-export GCC_INSTALL_DIR=/opt/riscv/spatz-gcc-7.1.1
+export LLVM_INSTALL_DIR=/data2/luca.colombo/physical/spatz_GF12/sw/toolchain/spatz-14-llvm-32bit
+export GCC_INSTALL_DIR=/data2/luca.colombo/physical/spatz_GF12/sw/toolchain/spatz-gcc
 
 QUESTA_VERSION="2025.3"
 echo "Load Questa $QUESTA_VERSION environment for Chips-IT"

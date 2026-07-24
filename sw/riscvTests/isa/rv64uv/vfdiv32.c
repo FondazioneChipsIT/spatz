@@ -33,7 +33,7 @@ void TEST_CASE1(void) {
   //              -0.63246030, -1.38413608, -1.58765483, -17.87367058,
   //              0.46144828,  1.06910765, -10.98536205,  0.40849173,
   //              170.47213745,  0.65877998,  0.74826509,  2.11265564
-  VCMP_U32(2, v2, 0xbf8b2ed5, 0xbc68f04d, 0xbe0bf09b, 0xbedaa462, 0xbf21e8ea,
+  VCMP_U32(1, v2, 0xbf8b2ed5, 0xbc68f04d, 0xbe0bf09b, 0xbedaa462, 0xbf21e8ea,
            0xbfb12b5e, 0xbfcb3846, 0xc18efd46, 0x3eec42f2, 0x3f88d884,
            0xc12fc40a, 0x3ed125d4, 0x432a78dd, 0x3f28a5cd, 0x3f3f8e4c,
            0x400735c0);
@@ -41,11 +41,12 @@ void TEST_CASE1(void) {
 };
 
 int main(void) {
+  INIT_CHECK();
   enable_vec();
   enable_fp();
   // Change RM to RTZ since there are issues with FDIV + RNE in fpnew
   // Update: there are issues also with RTZ...
-  CHANGE_RM(RM_RTZ);
+  //CHANGE_RM(RM_RTZ);
 
   TEST_CASE1();
 
