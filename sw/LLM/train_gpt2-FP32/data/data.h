@@ -6,13 +6,13 @@
 // #define T_Size 4
 // #define C_Size 256
 
-// #define B_Size 1
-// #define T_Size 1
-// #define C_Size 3141
-
 #define B_Size 1
 #define T_Size 1
-#define C_Size 4096
+#define C_Size 3141
+
+/* #define B_Size 1
+#define T_Size 1
+#define C_Size 4096 */
 
 
 /* #define B_Size 1

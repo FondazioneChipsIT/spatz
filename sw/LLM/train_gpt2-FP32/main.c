@@ -129,6 +129,7 @@ void fast_cosh_v1(float* inp, float* out, float* temp, int size, unsigned int vl
     asm volatile("vle32.v v28, (%0)" :: "r"(temp+size));
     asm volatile("vfadd.vv v24, v24, v28");
     asm volatile("vfdiv.vf    v24, v24, %[A]" ::[A] "f"(2.0f));
+    snrt_cluster_hw_barrier();
     asm volatile("vse32.v v24, (%0)" :: "r"(out));
 }
 
@@ -159,6 +160,7 @@ void fast_cosh_v2(float* inp, float* out, float* temp, int memload ,int vnum,int
 
         asm volatile("vfadd.vv v16, v16, v24");
         asm volatile("vfdiv.vf    v16, v16, %[A]" ::[A] "f"(2.0f));
+        snrt_cluster_hw_barrier();
         asm volatile("vse32.v v16, (%0)" :: "r"(out));
     } else if(vnum == 8){
         asm volatile("vsetvli %0, %1, e32, m8, ta, ma" : "=r"(vl) : "r"(size));
@@ -187,6 +189,7 @@ void fast_cosh_v2(float* inp, float* out, float* temp, int memload ,int vnum,int
 
         asm volatile("vfadd.vv v16, v16, v8");
         asm volatile("vfdiv.vf    v8, v16, %[A]" ::[A] "f"(2.0f));
+        snrt_cluster_hw_barrier();
         // asm volatile("vse32.v v16, (%0)" :: "r"(out));
     }
 }
@@ -217,6 +220,7 @@ void fast_tanh_v1(float* inp, float* out, float* temp, int memload ,int vnum,int
         asm volatile("vfsub.vf v28, v28, %[A]" ::[A] "f"(1.0f));
 
         asm volatile("vfdiv.vv v28, v28, v24");
+        snrt_cluster_hw_barrier();
         asm volatile("vse32.v v28, (%0)" :: "r"(out));
     } else {
         if(vnum == 0){
@@ -243,6 +247,7 @@ void fast_tanh_v1(float* inp, float* out, float* temp, int memload ,int vnum,int
             asm volatile("vfsub.vf v12, v12, %[A]" ::[A] "f"(1.0f));
     
             asm volatile("vfdiv.vv v8, v12, v8");
+            snrt_cluster_hw_barrier();
             // asm volatile("vse32.v v28, (%0)" :: "r"(out));            
         }else if(vnum == 16){
             asm volatile("vsetvli %0, %1, e32, m4, ta, ma" : "=r"(vl) : "r"(size));
@@ -267,6 +272,7 @@ void fast_tanh_v1(float* inp, float* out, float* temp, int memload ,int vnum,int
             asm volatile("vfsub.vf v20, v20, %[A]" ::[A] "f"(1.0f));
     
             asm volatile("vfdiv.vv v16, v20, v16");   
+            snrt_cluster_hw_barrier();
         }
     }
 }
@@ -294,6 +300,7 @@ void fast_tanh_v2(float* inp, float* out, float* temp, int memload ,int vnum,int
         asm volatile("vfsub.vf v28, v28, %[A]" ::[A] "f"(1.0f));
 
         asm volatile("vfdiv.vv v28, v28, v24");
+        snrt_cluster_hw_barrier();
         asm volatile("vse32.v v28, (%0)" :: "r"(out));
     } else {
         if(vnum == 0){
@@ -319,6 +326,7 @@ void fast_tanh_v2(float* inp, float* out, float* temp, int memload ,int vnum,int
             asm volatile("vfsub.vf v16, v16, %[A]" ::[A] "f"(1.0f));
     
             asm volatile("vfdiv.vv v8, v16, v8");
+            snrt_cluster_hw_barrier();
             // asm volatile("vse32.v v28, (%0)" :: "r"(out));            
         }else if(vnum == 16){
             asm volatile("vsetvli %0, %1, e32, m8, ta, ma" : "=r"(vl) : "r"(size));
@@ -342,6 +350,7 @@ void fast_tanh_v2(float* inp, float* out, float* temp, int memload ,int vnum,int
             asm volatile("vfsub.vf v24, v24, %[A]" ::[A] "f"(1.0f));
     
             asm volatile("vfdiv.vv v16, v24, v16");   
+            snrt_cluster_hw_barrier();
         }
     }
 }
@@ -1422,6 +1431,7 @@ void gelu_backward(float* dinp, float* inp, float* dout,
         asm volatile("vfmul.vf    v24 , v24, %[A] " ::[A] "f"(0.5f));
         asm volatile("vfmul.vv    v24 , v24, v0");//x * 0.5f *  GELU_SCALING_FACTOR * (1.0f + 3.0f * 0.044715f * x * x)
         asm volatile("vfdiv.vv    v0  , v24, v8");//x * 0.5f * sech_out * GELU_SCALING_FACTOR * (1.0f + 3.0f * 0.044715f * x * x)
+        snrt_cluster_hw_barrier();
 
         asm volatile("vfadd.vf    v16, v16, %[A] " ::[A] "f"(1.0f));//(1.0f + tanh_out)
         asm volatile("vfmul.vf    v16, v16, %[A] " ::[A] "f"(0.5f));//0.5f * (1.0f + tanh_out)
@@ -1475,6 +1485,7 @@ void gelu_backward(float* dinp, float* inp, float* dout,
         asm volatile("vfmul.vf    v24 , v24, %[A] " ::[A] "f"(0.5f));
         asm volatile("vfmul.vv    v24 , v24, v0");//x * 0.5f *  GELU_SCALING_FACTOR * (1.0f + 3.0f * 0.044715f * x * x)
         asm volatile("vfdiv.vv    v0  , v24, v8");//x * 0.5f * sech_out * GELU_SCALING_FACTOR * (1.0f + 3.0f * 0.044715f * x * x)
+        snrt_cluster_hw_barrier();
 
         asm volatile("vfadd.vf    v16, v16, %[A] " ::[A] "f"(1.0f));//(1.0f + tanh_out)
         asm volatile("vfmul.vf    v16, v16, %[A] " ::[A] "f"(0.5f));//0.5f * (1.0f + tanh_out)
@@ -1665,6 +1676,7 @@ void softmax_forward(float* probs, float* logits, float* temp, int B, int T, int
             while(itr*VLMAX + VLMAX <= num_elements){
                 asm volatile("vle32.v     v0 , (%0)" :: "r"(probs_bt  +itr*VLMAX));
                 asm volatile("vfdiv.vf    v8, v0, %[A]" ::[A] "f"(sum));
+                snrt_cluster_hw_barrier();
                 asm volatile("vse32.v     v8 , (%0)" :: "r"(probs_bt   +itr*VLMAX));
                 itr++;
             }
@@ -1672,6 +1684,7 @@ void softmax_forward(float* probs, float* logits, float* temp, int B, int T, int
                 asm volatile("vsetvli     %0, %1, e32, m8, ta, ma" : "=r"(vl) : "r"(num_elements - itr*VLMAX));
                 asm volatile("vle32.v     v0 , (%0)" :: "r"(probs_bt  +itr*VLMAX));
                 asm volatile("vfdiv.vf    v8, v0, %[A]" ::[A] "f"(sum));
+                snrt_cluster_hw_barrier();
                 asm volatile("vse32.v     v8 , (%0)" :: "r"(probs_bt   +itr*VLMAX));
             }
             // for extra super safety we may wish to include this too,
@@ -2056,7 +2069,7 @@ int main() {
     //---------------------------------------------------------
 
     //--------------------------------------------------------- gelu_forward
-    int N = B*T*C;
+    /* int N = B*T*C;
     if (cid == 0) {
         inp     = (float*)snrt_l1alloc(B * T  * C   * sizeof(float));
         out     = (float*)snrt_l1alloc(B * T  * C   * sizeof(float));
@@ -2067,7 +2080,7 @@ int main() {
     timer = benchmark_get_cycle();
     start_kernel();    
     gelu_forward(out, inp, temp ,temp2 ,B*T*C, vl);
-    stop_kernel();
+    stop_kernel(); */
     // if(cid == 0){
     //     printf("CHECK RESULTS1\n");
     //     check_result(out     , outG   , B * T * C);   
@@ -2145,17 +2158,17 @@ int main() {
     // int V  = C;
     // // int Vp = C;
     // int Vp = C+3;
-    // if (cid == 0) {
-    //     inp    = (float*)snrt_l1alloc(B * T  * C   * sizeof(float));
-    //     out    = (float*)snrt_l1alloc(B * T  * C   * sizeof(float));
-    //     snrt_dma_start_1d(inp , data1_dram, B * T * C * sizeof(float));
-    //     snrt_dma_wait_all();
-    // }
-    // snrt_cluster_hw_barrier();
-    // timer = benchmark_get_cycle();
-    // start_kernel();    
-    // softmax_forward(out, inp, temp, B, T, C, C, vl);
-    // stop_kernel();
+     if (cid == 0) {
+        inp    = (float*)snrt_l1alloc(B * T  * C   * sizeof(float));
+        out    = (float*)snrt_l1alloc(B * T  * C   * sizeof(float));
+        snrt_dma_start_1d(inp , data1_dram, B * T * C * sizeof(float));
+        snrt_dma_wait_all();
+    }
+    snrt_cluster_hw_barrier();
+    timer = benchmark_get_cycle();
+    start_kernel();    
+    softmax_forward(out, inp, temp, B, T, C, C, vl);
+    stop_kernel(); 
     // if(cid == 0){
     //     printf("CHECK RESULTS1\n");
     //     check_result(out      , probsG    , B * T * C);

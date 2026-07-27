@@ -446,7 +446,7 @@ module spatz_controller
       end
 
       // Is this a risky instruction which should not chain?
-      if (spatz_req.op inside {VSLIDEUP, VLSE, VLXE, VSSE, VSXE})
+      if (spatz_req.op inside {VSLIDEUP, VLSE, VLXE, VSSE, VSXE, VFDIV})
         scoreboard_d[spatz_req.id].prevent_chaining = 1'b1;
 
       // Is this a narrowing or widening instruction?
