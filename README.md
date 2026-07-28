@@ -15,16 +15,7 @@ make all
 
 The Makefile target will automatically download and compile tested versions of LLVM, GCC, Spike, and Verilator. It might take a while. If you have issues cloning the GitHub modules, you might need to remove the folders in `sw/toolchain`.
 
-ETH users can source the toolchains and initialize the environment by doing:
-
-```bash
-
-source util/iis-env.sh
-
-make init
-```
-
-Analogously, Chips-IT users can do that by doing:
+Chips-IT users can initialize the environment by doing:
 
 ```bash
 
@@ -39,40 +30,56 @@ The Spatz cluster system (hw/system/spatz_cluster) is a fundamental system aroun
 
 In `hw/system/spatz_cluster`:
 
-- Generate needed files (first time only):
+- Compile the software and choose the configuration in `./cfg`:
 ```bash
-    make generate -B
+    make sw SPATZ_CLUSTER_CFG=choose/the/config
 ```
+- Compile the RTL and specify the binary to run on the simulator:
 
-- Compile the software and the binaries:
   - Verilator:
 ```bash
-    make sw.vlt
-```
-  - QuestaSim:
-```bash
-    make sw.vsim
-```
-  - VCS:
-```bash
-    make sw.vcs
-```
-- Run a binary on the simulator:
-  - Verilator:
-```bash
-bin/spatz_cluster.vlt path/to/riscv/binary
+make sim.vlt TEST=path/to/riscv/binary
 ```
   - QuestaSim:
 ```bash
 # Headless
-bin/spatz_cluster.vsim path/to/riscv/binary
+make sim.vsim TEST=path/to/riscv/binary
 # GUI
-bin/spatz_cluster.vsim.gui path/to/riscv/binary
+make sim.vsim.gui TEST=path/to/riscv/binary
 ```
-  - VCS
+  - VCS:
 ```bash
-bin/spatz_cluster.vcs path/to/riscv/binary
+# Headless
+make sim.vcs TEST=path/to/riscv/binary
+# GUI
+make sim.vcs.gui TEST=path/to/riscv/binary
 ```
+  - Xcelium:
+```bash
+# Headless
+make sim.xrun TEST=path/to/riscv/binary
+# GUI
+make sim.xrun.gui TEST=path/to/riscv/binary
+```
+
+- Given a configuration selected in SW compile phase, the user can run all the tests on a simulator by using:
+  - Verilator:
+```bash
+make sw.test.vlt
+```
+  - QuestaSim:
+```bash
+make sw.test.vsim
+```
+  - VCS:
+```bash
+make sw.test.vcs
+```
+  - Xcelium:
+```bash
+make sw.test.xrun
+```
+
 - Build the traces in `.logs/trace_hart_X.txt` with the help of `spike-dasm`:
 ```bash
 make traces
@@ -86,33 +93,17 @@ make annotate
 make help
 ```
 
-### Configure the Cluster
-
-To configure the cluster with a different configuration, either edit the configuration files in the `cfg` folder or create a new configuration file and pass it to the Makefile:
-
+### CHIPS-IT simulation flow example with Questasim
 ```bash
-make bin/spatz_cluster.vlt CFG=cfg/spatz_cluster.default.hjson
-```
-
-The default config is in `cfg/spatz_cluster.default.hjson`. Alternatively, you can also set your `CFG` environment variable, the Makefile will pick it up and override the standard config.
-
-### CHIPS-IT simulation flow example
-```bash
-
 source util/chips-it-env.sh
 make init
 cd hw/system/spatz_cluster
 
-make clean.vsim
-make sw.vsim -B SPATZ_CLUSTER_CFG=spatz_cluster.32b.dram.hjson
-#alternatively:
-make clean.vcs
-make sw.vcs -B SPATZ_CLUSTER_CFG=spatz_cluster.32b.dram.hjson
+make sw SPATZ_CLUSTER_CFG=default  #choose among: default/32b/smallvrf/doublebw
 
-bin/spatz_cluster.vsim.gui sw/build/riscvTests/test-riscvTests-vls
+make sim.vsim TEST=./sw/build/riscvTests/test-riscvTests-vls
 #alternatively:
-bin/spatz_cluster.vcs.gui sw/build/riscvTests/test-riscvTests-vls
-
+make sim.vsim.gui TEST=./sw/build/riscvTests/test-riscvTests-vls
 ```
 
 ## Architecture

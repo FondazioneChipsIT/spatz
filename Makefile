@@ -252,8 +252,10 @@ $(VERILATOR_INSTALL_DIR)/bin/verilator: sw/toolchain/verilator sw/toolchain/help
 #############
 #  Opcodes  #
 #############
+clean_opcodes:
+	rm -rf sw/toolochain/riscv-opcodes
 
-update_opcodes: sw/toolchain/riscv-opcodes sw/toolchain/riscv-opcodes/encoding.h hw/ip/snitch/src/riscv_instr.sv
+update_opcodes: clean_opcodes sw/toolchain/riscv-opcodes sw/toolchain/riscv-opcodes/encoding.h hw/ip/snitch/src/riscv_instr.sv
 hw/ip/snitch/src/riscv_instr.sv: sw/toolchain/riscv-opcodes
 	make -C sw/toolchain/riscv-opcodes inst.sverilog EXTENSIONS='$(OPCODES)'
 	mv sw/toolchain/riscv-opcodes/inst.sverilog $@
