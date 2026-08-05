@@ -42,3 +42,4 @@ sourcecode
 # Avoid innovus folder
 innovus/
 synth_scripts/
+questasim*

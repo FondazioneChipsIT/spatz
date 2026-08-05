@@ -28,14 +28,14 @@
 // #include "data/data-bill.h"
 // #include "Golden/gold-bill.h"
 
-// #include "data/data-bill-rbf.h"
-// #include "Golden/gold-bill-rbf.h"
+#include "data/data-bill-rbf.h"
+#include "Golden/gold-bill-rbf.h"
 
 // #include "data/data-cancer.h"
 // #include "Golden/gold-cancer.h"
-
+/* 
 #include "data/data-cancer-rbf.h"
-#include "Golden/gold-cancer-rbf.h"
+#include "Golden/gold-cancer-rbf.h" */
 
 
 // #include "data/data.h"
@@ -95,7 +95,7 @@ void check_result(float *x, float *check, int r){
         diff = fabs(x[i] - check[i]);
         if(diff>THRESHOLD){
             err++;
-            printf("Error at index %d:\t expected %f\t real %f\t error %f\n", i, check[i], x[i], diff);
+            //printf("Error at index %d:\t expected %f\t real %f\t error %f\n", i, check[i], x[i], diff);
         }
     }
 
@@ -113,7 +113,7 @@ void check_result_int(int *x, int *check, int r){
       diff = fabs(x[i] - check[i]);
       if(diff>THRESHOLD){
           err++;
-          printf("Error at index %d:\t expected %d\t real %d\t error %f\n", i, check[i], x[i], diff);
+          //printf("Error at index %d:\t expected %d\t real %d\t error %f\n", i, check[i], x[i], diff);
       }
   }
 

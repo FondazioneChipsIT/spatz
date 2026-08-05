@@ -112,6 +112,12 @@ int main() {
   if (cid == 0)
     timer = benchmark_get_cycle() - timer;
 
+
+  if (cid == 0) {
+      printf("The execution took %u cycles.\n", timer);
+  }
+
+
   // Display runtime
   if (cid == 0) {
     // See the bottom of the file dp-fft/main.c for further info on the

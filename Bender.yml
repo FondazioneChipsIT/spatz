@@ -191,3 +191,10 @@ sources:
         files:
         - nonfree/gf12/mems/tc_sram.sv
         - nonfree/gf12/sourcecode/tc_clk.sv
+
+      - target: all(gf12, not(synthesis), postlayout)      
+        include_dirs:
+          - sourcecode/verilog 
+        files:   
+          - sourcecode/verilog/*.v 
+          - hw/ip/snitch_test/src/tb_bin.sv

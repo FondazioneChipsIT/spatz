@@ -167,3 +167,5 @@ add_snitch_test(vse16 isa/rv64uv/vse16.c)
 add_snitch_test(vse32 isa/rv64uv/vse32.c)
 add_snitch_test(vse64 isa/rv64uv/vse64.c)
 add_snitch_test(vss isa/rv64uv/vss.c)
+
+add_snitch_test(idle isa/rv64uv/idle.c)

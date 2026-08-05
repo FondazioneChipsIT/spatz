@@ -51,7 +51,7 @@ void check_result(float *x, int r){
     int err = 0;
 
     for(int i = 0; i < r; i++){  
-        diff = fabs(x[i] - check[i]);
+        diff = fabsf(x[i] - check[i]);
         if(diff>THRESHOLD){
             err++;
             //printf("Error at index %d:\t expected %f\t real %f\t error %f\n", i, check[i], x[i], diff);

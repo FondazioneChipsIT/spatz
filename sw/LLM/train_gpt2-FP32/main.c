@@ -1932,24 +1932,24 @@ int main() {
     //---------------------------------------------------------
 
     //--------------------------------------------------------- matmul_forward_naive
-    // int OC = C;
-    // if (cid == 0) {
-    //     inp     = (float*)snrt_l1alloc(B * T * C * sizeof(float));
-    //     weight  = (float*)snrt_l1alloc(1 * OC* C * sizeof(float));
-    //     weightT = (float*)snrt_l1alloc(1 * OC* C * sizeof(float));
-    //     bias    = (float*)snrt_l1alloc(1 * 1 * OC* sizeof(float));
-    //     out     = (float*)snrt_l1alloc(B * T * C * sizeof(float));
-    //     snrt_dma_start_1d(weight , data1_dram, 1 * OC* C * sizeof(float));
-    //     snrt_dma_start_1d(inp    , data1_dram, B * T * C * sizeof(float));
-    //     snrt_dma_start_1d(bias   , data1_dram, 1 * 1 * OC* sizeof(float));
-    //     snrt_dma_start_1d(out    , data1_dram, B * T * C * sizeof(float));
-    //     snrt_dma_wait_all();
-    // }
-    // snrt_cluster_hw_barrier();
-    // timer = benchmark_get_cycle();
-    // start_kernel();    
-    // matmul_forward_naive(out, inp, weight, weightT, bias, B, T, C, C, vl);
-    // stop_kernel();
+    int OC = C;
+    if (cid == 0) {
+        inp     = (float*)snrt_l1alloc(B * T * C * sizeof(float));
+        weight  = (float*)snrt_l1alloc(1 * OC* C * sizeof(float));
+        weightT = (float*)snrt_l1alloc(1 * OC* C * sizeof(float));
+        bias    = (float*)snrt_l1alloc(1 * 1 * OC* sizeof(float));
+        out     = (float*)snrt_l1alloc(B * T * C * sizeof(float));
+        snrt_dma_start_1d(weight , data1_dram, 1 * OC* C * sizeof(float));
+        snrt_dma_start_1d(inp    , data1_dram, B * T * C * sizeof(float));
+        snrt_dma_start_1d(bias   , data1_dram, 1 * 1 * OC* sizeof(float));
+        snrt_dma_start_1d(out    , data1_dram, B * T * C * sizeof(float));
+        snrt_dma_wait_all();
+    }
+    snrt_cluster_hw_barrier();
+    timer = benchmark_get_cycle();
+    start_kernel();    
+    matmul_forward_naive(out, inp, weight, weightT, bias, B, T, C, C, vl);
+    stop_kernel();
     // if(cid == 0){
     //     printf("CHECK RESULTS1\n");
     //     check_result(out    , outG   , B * T * C);
@@ -2158,7 +2158,7 @@ int main() {
     // int V  = C;
     // // int Vp = C;
     // int Vp = C+3;
-     if (cid == 0) {
+/*      if (cid == 0) {
         inp    = (float*)snrt_l1alloc(B * T  * C   * sizeof(float));
         out    = (float*)snrt_l1alloc(B * T  * C   * sizeof(float));
         snrt_dma_start_1d(inp , data1_dram, B * T * C * sizeof(float));
@@ -2168,7 +2168,7 @@ int main() {
     timer = benchmark_get_cycle();
     start_kernel();    
     softmax_forward(out, inp, temp, B, T, C, C, vl);
-    stop_kernel(); 
+    stop_kernel();  */
     // if(cid == 0){
     //     printf("CHECK RESULTS1\n");
     //     check_result(out      , probsG    , B * T * C);
