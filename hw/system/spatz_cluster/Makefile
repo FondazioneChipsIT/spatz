@@ -356,7 +356,7 @@ sw.test.vsim: sw.vsim
 ${XRUN_BUILDDIR}/flist: $(CFG_STAMP) ${BENDER}
 	mkdir -p ${XRUN_BUILDDIR}
 	# these sed commands remove some files wich would cause errors during elaboration
-	${BENDER} script flist-plus ${VSIM_BENDER} ${DEFS} | sed /tb_apb/d | sed /tb_axi_iw/d > $@
+	${BENDER} script flist-plus ${VSIM_BENDER} ${DEFS} > $@
 
 ${XRUN_BUILDDIR}/xcelium.d: $(CURDIR)/src/generated/bootrom.sv test/bootrom.bin ${XRUN_BUILDDIR}/flist work/lib/libfesvr_xrun.a ${TB_CCSRC}
 	@cd ${XRUN_BUILDDIR}; xrun ${XRUN_FLAGS} -sv -f flist ${TB_CCSRC}

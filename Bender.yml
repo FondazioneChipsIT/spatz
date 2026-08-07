@@ -44,7 +44,7 @@ sources:
     - target: simulation
       files:
         - hw/ip/reqrsp_interface/src/reqrsp_test.sv
-    - target: test
+    - target: spatz_cc_test
       files:
         # Level 0
         - hw/ip/reqrsp_interface/test/axi_to_reqrsp_tb.sv
@@ -68,7 +68,7 @@ sources:
     - target: simulation
       files:
         - hw/ip/tcdm_interface/src/tcdm_test.sv
-    - target: test
+    - target: spatz_cc_test
       files:
         # Level 0
         - hw/ip/tcdm_interface/test/reqrsp_to_tcdm_tb.sv
@@ -98,7 +98,7 @@ sources:
       files:
         - hw/ip/snitch/src/snitch.sv
 
-    - target: test
+    - target: spatz_cc_test
       files:
         - hw/ip/snitch/test/snitch_l0_tlb_tb.sv
 
