@@ -1932,7 +1932,7 @@ int main() {
     //---------------------------------------------------------
 
     //--------------------------------------------------------- matmul_forward_naive
-    int OC = C;
+/*     int OC = C;
     if (cid == 0) {
         inp     = (float*)snrt_l1alloc(B * T * C * sizeof(float));
         weight  = (float*)snrt_l1alloc(1 * OC* C * sizeof(float));
@@ -1949,7 +1949,7 @@ int main() {
     timer = benchmark_get_cycle();
     start_kernel();    
     matmul_forward_naive(out, inp, weight, weightT, bias, B, T, C, C, vl);
-    stop_kernel();
+    stop_kernel(); */
     // if(cid == 0){
     //     printf("CHECK RESULTS1\n");
     //     check_result(out    , outG   , B * T * C);
@@ -2110,7 +2110,7 @@ int main() {
     //---------------------------------------------------------
 
     //--------------------------------------------------------- residual_forward
-   /*  int N = B*T*C;
+    int N = B*T*C;
     if (cid == 0) {
         inp     = (float*)snrt_l1alloc(B * T  * C   * sizeof(float));
         dinp    = (float*)snrt_l1alloc(B * T  * C   * sizeof(float));
@@ -2123,7 +2123,7 @@ int main() {
     timer = benchmark_get_cycle();
     start_kernel();    
     residual_forward(out, inp, dinp, B*T*C, vl);
-    stop_kernel(); */
+    stop_kernel(); 
     // if(cid == 0){
     //     printf("CHECK RESULTS1\n");
     //     check_result(out     , outG   , B * T * C);   

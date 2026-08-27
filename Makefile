@@ -158,7 +158,7 @@ sw/toolchain/riscv-opcodes/encoding.h:
 # TECH #
 ########
 
-#include tech.mk
+include tech.mk
 
 # Forward the used memory macros to the back-end scripts
 SYN_PARAM += set LIBRARIES [list ${LIBRARIES}];\
