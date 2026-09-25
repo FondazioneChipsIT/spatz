@@ -136,7 +136,7 @@ packages:
     revision: 071a47159dc3e9d3574331775a4b8ce1aab21284
     version: null
     source:
-      Path: https://github.com/FondazioneChipsIT/spatz_vpu.git
+      Git: https://github.com/FondazioneChipsIT/spatz_vpu.git
     dependencies:
     - common_cells
     - fpnew
