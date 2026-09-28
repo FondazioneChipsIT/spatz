@@ -36,10 +36,14 @@ module tb_bin;
     end
   end
 
+  // FSDB dumping is compiled in with FSDB_DUMP but only enabled at runtime
+  // with `+fsdb`, so that regular (e.g., ctest) runs do not dump waveforms
   initial begin
   `ifdef FSDB_DUMP
-    $fsdbDumpfile("inter.fsdb");
-    $fsdbDumpvars(0, tb_bin, "+all");
+    if ($test$plusargs("fsdb")) begin
+      $fsdbDumpfile("inter.fsdb");
+      $fsdbDumpvars(0, tb_bin, "+all");
+    end
   `endif
   end
 

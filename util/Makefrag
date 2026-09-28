@@ -18,13 +18,14 @@ LLVM_INSTALL_DIR      ?= ${INSTALL_DIR}/llvm
 GCC_INSTALL_DIR       ?= ${INSTALL_DIR}/riscv-gcc
 SPIKE_INSTALL_DIR     ?= ${INSTALL_DIR}/riscv-isa-sim
 BENDER_INSTALL_DIR    ?= ${INSTALL_DIR}/bender
+VERILATOR_INSTALL_DIR ?= ${INSTALL_DIR}/verilator
 
 # Support for local override
 BENDER ?= ${BENDER_INSTALL_DIR}/bender
 DASM   ?= ${SPIKE_INSTALL_DIR}/bin/spike-dasm
 VLT    ?= ${VERILATOR_INSTALL_DIR}/bin/verilator_bin
 CMAKE  ?= cmake
-PYTHON ?= python3.12
+PYTHON ?= python3
 CC     ?= gcc-11.2.0
 CXX    ?= g++-11.2.0
 
@@ -37,6 +38,7 @@ TB_DIR    := ${ROOT}/hw/ip/snitch_test/src
 VSIM_BENDER   += -t test -t rtl -t simulation -t spatz -t spatz_test -t snitch_test ${BENDER_CFG_TARGETS}
 VSIM_SOURCES  := $(shell ${BENDER} script flist ${VSIM_BENDER} | ${SED_SRCS})
 VSIM_BUILDDIR := work-vsim
+VCS_BUILDDIR  ?= work-vcs
 
 # fesvr is being installed here
 FESVR          ?= ${MKFILE_DIR}work
@@ -155,11 +157,11 @@ endef
 #######
 # VCS #
 #######
-work-vcs/compile.sh: ${VSIM_SOURCES} ${TB_SRCS}
-	mkdir -p work-vcs
+${VCS_BUILDDIR}/compile.sh: ${VSIM_SOURCES} ${TB_SRCS}
+	mkdir -p ${VCS_BUILDDIR}
 	${BENDER} script vcs ${VSIM_BENDER} ${DEFS} --vlog-arg="${VLOGAN_FLAGS}" --vcom-arg="${VHDLAN_FLAGS}" > $@
 	chmod +x $@
-	$@ | tee work-vcs/compile.log
+	$@ | tee ${VCS_BUILDDIR}/compile.log
 
 ########
 # Util #

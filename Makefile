@@ -233,7 +233,7 @@ check-bender:
 		fi \
 	fi
 	@$(MAKE) -C $(ROOT_DIR) $(BENDER_INSTALL_DIR)/bender
-	ln -s $$(find "$(ROOT_DIR)/.bender/git/checkouts" -type d -name 'spatz_vpu-*') $(ROOT_DIR)/hw/spatz_vpu
+	ln -sfn $$(find "$(ROOT_DIR)/.bender/git/checkouts" -maxdepth 1 -type d -name 'spatz_vpu-*' | head -n1) $(ROOT_DIR)/hw/spatz_vpu
 
 $(BENDER_INSTALL_DIR)/bender:
 	mkdir -p $(BENDER_INSTALL_DIR) && cd $(BENDER_INSTALL_DIR) && \
@@ -253,14 +253,15 @@ $(VERILATOR_INSTALL_DIR)/bin/verilator: sw/toolchain/verilator sw/toolchain/help
 #############
 #  Opcodes  #
 #############
+.PHONY: clean_opcodes update_opcodes
 clean_opcodes:
-	rm -rf sw/toolochain/riscv-opcodes
+	rm -rf sw/toolchain/riscv-opcodes
 
 update_opcodes: clean_opcodes sw/toolchain/riscv-opcodes sw/toolchain/riscv-opcodes/encoding.h hw/ip/snitch/src/riscv_instr.sv
 hw/ip/snitch/src/riscv_instr.sv: sw/toolchain/riscv-opcodes
-	make -C sw/toolchain/riscv-opcodes inst.sverilog EXTENSIONS='$(OPCODES)'
+	env -u VIRTUAL_ENV UV_LINK_MODE=copy make -C sw/toolchain/riscv-opcodes inst.sverilog EXTENSIONS='$(OPCODES)'
 	mv sw/toolchain/riscv-opcodes/inst.sverilog $@
 
 sw/toolchain/riscv-opcodes/encoding.h:
-	make -C sw/toolchain/riscv-opcodes encoding.out.h EXTENSIONS='$(OPCODES)'
+	env -u VIRTUAL_ENV UV_LINK_MODE=copy make -C sw/toolchain/riscv-opcodes encoding.out.h EXTENSIONS='$(OPCODES)'
 	cp sw/toolchain/riscv-opcodes/encoding.out.h $@

@@ -26,3 +26,5 @@ mems
 install
 .projectBender.lock
 spatz_env
+.venv/
+*bootrom.elf

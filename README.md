@@ -98,14 +98,9 @@ make help
 
 ### CHIPS-IT workflow example with Questasim
 ```bash
-<<<<<<< HEAD
-make bin/spatz_cluster.vlt CFG=cfg/spatz_cluster.default.hjson -B
-```
-=======
 source util/chips-it-env.sh
 make init
 cd hw/system/spatz_cluster
->>>>>>> d145c2ef ([ENV] chips-it setup updated)
 
 make vsim SPATZ_CLUSTER_CFG=smallvrf  #choose among: default/32b/smallvrf/doublebw
 make sw

@@ -20,7 +20,8 @@ CFG_STAMP := .spatz_cluster_cfg
 # Suite file
 SUITE_STAMP := .spatz_cluster_suite
 
-#if the cfg is not passed as a command line argument, reuse the last one used by `make sw`.
+# If the cfg is not passed as a command line argument, reuse the last one passed
+# to any target (stored in CFG_STAMP), or `default` if none was ever passed
 ifeq ($(origin SPATZ_CLUSTER_CFG),undefined)
 SPATZ_CLUSTER_CFG := $(shell cat $(CFG_STAMP) 2>/dev/null || echo default)
 endif
@@ -40,7 +41,27 @@ $(SUITE_STAMP): FORCE
 		printf '%s' "$(SUITE)" > $@; \
 	fi
 
-SPATZ_CLUSTER_CFG_PATH    := $(SPATZ_CLUSTER_DIR)/cfg/spatz_cluster.$(SPATZ_CLUSTER_CFG).dram.hjson
+# Available configurations: cfg/spatz_cluster.<cfg>.dram.hjson
+SPATZ_CLUSTER_CFGS     := $(sort $(patsubst spatz_cluster.%.dram.hjson,%,$(notdir $(wildcard $(SPATZ_CLUSTER_DIR)/cfg/spatz_cluster.*.dram.hjson))))
+SPATZ_CLUSTER_CFG_PATH := $(SPATZ_CLUSTER_DIR)/cfg/spatz_cluster.$(SPATZ_CLUSTER_CFG).dram.hjson
+
+# Targets that do not need a valid configuration
+NO_CFG_GOALS := help clean clean.sw clean.logs clean.vsim clean.vlt clean.vcs clean.xrun
+
+ifneq ($(MAKECMDGOALS),)
+ifeq ($(filter-out $(NO_CFG_GOALS),$(MAKECMDGOALS)),)
+SKIP_CFG := 1
+endif
+endif
+
+# Simply-expanded: the python calls below are evaluated once, at parse time
+SPATZ_CLUSTER_CFG_DEFINES :=
+
+ifneq ($(SKIP_CFG),1)
+ifeq ($(wildcard $(SPATZ_CLUSTER_CFG_PATH)),)
+$(error Configuration '$(SPATZ_CLUSTER_CFG)' not found ($(SPATZ_CLUSTER_CFG_PATH)). Use SPATZ_CLUSTER_CFG=<cfg> with <cfg> one of: $(SPATZ_CLUSTER_CFGS))
+endif
+
 SPATZ_CLUSTER_CFG_DEFINES += -DMEM_DRAM_ORIGIN=$(shell python3 -c "import jstyleson; f = open('$(SPATZ_CLUSTER_CFG_PATH)'); print(jstyleson.load(f)['dram']['address'])")
 SPATZ_CLUSTER_CFG_DEFINES += -DMEM_DRAM_SIZE=$(shell python3 -c "import jstyleson; f = open('$(SPATZ_CLUSTER_CFG_PATH)'); print(jstyleson.load(f)['dram']['length'])")
 SPATZ_CLUSTER_CFG_DEFINES += -DSNRT_BASE_HARTID=$(shell python3 -c "import jstyleson; f = open('$(SPATZ_CLUSTER_CFG_PATH)'); print(jstyleson.load(f)['cluster']['cluster_base_hartid'])")
@@ -80,6 +101,8 @@ ifeq ($(SPATZ_CLUSTER_VENTAGLIO),1)
 	SPATZ_CLUSTER_CFG_DEFINES += -DSPATZ_CLUSTER_VENTAGLIO=1
 endif
 
+endif
+
 # Include Makefrag
 include $(ROOT)/util/Makefrag
 
@@ -114,13 +137,9 @@ VLOG_FLAGS += -64
 #######
 
 VCS       ?= vcs
-VERDI     ?= verdi
 VERDI_GUI ?= ultra
-FSDB_FILE ?= inter.fsdb
 
-VCS_BUILDDIR ?= work-vcs
-VCS_SIMV     := vcs.simv
-
+# VCS_BUILDDIR (work-vcs) is defined in util/Makefrag
 VCS_COMMON_FLAGS += -Mlib=$(VCS_BUILDDIR)
 VCS_COMMON_FLAGS += -Mdir=$(VCS_BUILDDIR)
 VCS_COMMON_FLAGS += -full64
@@ -134,6 +153,8 @@ VCS_COMMON_FLAGS += -cpp $(CXX)
 
 VCS_DEBUG ?= 1
 
+# With VCS_DEBUG=1 the FSDB dump is compiled in, but it is only enabled at
+# runtime with `+fsdb`, which is passed by the GUI wrapper only.
 ifeq ($(VCS_DEBUG),1)
 VCS_DEBUG_FLAGS += -debug_access+all
 VCS_DEBUG_FLAGS += -kdb=common_elab
@@ -148,6 +169,9 @@ endif
 ########
 XRUN_BUILDDIR = work-xrun
 XRUN_SNAPSHOT_DIR  := $(abspath ${XRUN_BUILDDIR})
+XRUN_ELAB_STAMP := ${XRUN_BUILDDIR}/.elab.stamp
+# Probe script for the GUI: records the whole hierarchy from t=0
+XRUN_PROBE_TCL := ${SPATZ_CLUSTER_DIR}/script/xrun/probe.tcl
 XRUN_HOME ?= $(shell xmroot)
 XRUN_CXXFLAGS += -Wcxx,-std=c++17,-I${ROOT}/hw/system/spatz_cluster/test,-I${ROOT}/hw/system/spatz_cluster/work/include,-I${TB_DIR}
 XRUN_CFLAGS += -Wcc,-I${ROOT}/hw/system/spatz_cluster/test
@@ -156,7 +180,6 @@ XRUN_LDFLAGS += -Wld,-l:libfesvr_xrun.a,-L${FESVR}/lib
 XRUN_FLAGS += -64bit
 XRUN_FLAGS += -elaborate
 XRUN_FLAGS += -allowredefinition
-XRUN_FLAGS += -glsperf
 XRUN_FLAGS += -timescale 1ns/1ns
 XRUN_FLAGS += -vtimescale 1ns/1ns
 XRUN_FLAGS += -enable_inout_out_def_arg
@@ -181,10 +204,6 @@ VLT_AR   = ${VLT_BUILDDIR}/Vtestharness__ALL.a
 
 
 all:
-
-test: ${VSIM_SOURCES} ${TB_SRCS}
-	echo ${VSIM_SOURCES}
-	touch test
 
 ###############
 # C testbench #
@@ -287,7 +306,6 @@ endef
 
 ${VLT_AR}: ${CFG_STAMP} $(CURDIR)/src/generated/bootrom.sv ${VLT_SOURCES} ${TB_SRCS}
 	$(call VERILATE,testharness)
-	
 
 # Quick sanity check, not really meant for simulation.
 verilate: ${VLT_AR}
@@ -324,7 +342,7 @@ clean.vlt:
 	rm -rf work-vlt
 	rm -f ./bin/spatz_cluster.vlt
 
-.PHONY: clean.vlt spatz_cluster.vlt sw.test.vlt
+.PHONY: clean.vlt spatz_cluster.vlt
 
 #############
 # Questasim #
@@ -355,8 +373,9 @@ spatz_cluster.vsim.gui: ./bin/spatz_cluster.vsim
 	$(check_test)
 	./bin/spatz_cluster.vsim.gui $$(realpath ${TEST})
 
+# fesvr in work/ is shared among the simulators: only remove the Questasim one
 clean.vsim:
-	rm -rf ./bin/spatz_cluster.vsim ./bin/spatz_cluster.vsim.gui work-vsim work vsim.wlf vish_stacktrace.vstf transcript
+	rm -rf ./bin/spatz_cluster.vsim ./bin/spatz_cluster.vsim.gui work-vsim work/lib/libfesvr_vsim.a vsim.wlf vish_stacktrace.vstf transcript
 
 .PHONY: clean.vsim spatz_cluster.vsim spatz_cluster.vsim.gui
 
@@ -364,26 +383,17 @@ clean.vsim:
 # XRUN #
 ########
 
-${XRUN_BUILDDIR}/flist: $(CFG_STAMP) ${BENDER}
+# Regenerate the file list whenever the dependencies (and thus the .bender checkouts) change
+${XRUN_BUILDDIR}/flist: $(CFG_STAMP) ${BENDER} $(ROOT)/Bender.yml $(ROOT)/Bender.lock $(wildcard $(ROOT)/Bender.local)
 	mkdir -p ${XRUN_BUILDDIR}
-	# these sed commands remove some files wich would cause errors during elaboration
 	${BENDER} script flist-plus ${VSIM_BENDER} ${DEFS} | sed /tb_apb/d | sed /tb_axi_iw/d > $@
 
-${XRUN_BUILDDIR}/xcelium.d: $(CURDIR)/src/generated/bootrom.sv test/bootrom.bin ${XRUN_BUILDDIR}/flist work/lib/libfesvr_xrun.a ${TB_CCSRC}
-	@cd ${XRUN_BUILDDIR}; xrun ${XRUN_FLAGS} -sv -f flist ${TB_CCSRC}
+# The snapshot lives in xcelium.d, whose mtime is not reliable: track the elaboration with a stamp
+${XRUN_ELAB_STAMP}: $(CURDIR)/src/generated/bootrom.sv test/bootrom.bin ${XRUN_BUILDDIR}/flist work/lib/libfesvr_xrun.a ${TB_CCSRC} ${VSIM_SOURCES} ${TB_SRCS}
+	cd ${XRUN_BUILDDIR} && xrun ${XRUN_FLAGS} -sv -f flist ${TB_CCSRC}
+	touch $@
 
-spatz_cluster.xrun: ./bin/spatz_cluster.xrun
-	$(check_test)
-	./bin/spatz_cluster.xrun $$(realpath ${TEST})
-
-spatz_cluster.xrun.gui: ./bin/spatz_cluster.xrun
-	$(check_test)
-	./bin/spatz_cluster.xrun.gui $$(realpath ${TEST})
-
-clean.xrun:
-	rm -rf work-xrun work bin/spatz_cluster.xrun bin/spatz_cluster.xrun.gui work-xrun-runs
-
-bin/spatz_cluster.xrun: ${XRUN_BUILDDIR}/xcelium.d
+bin/spatz_cluster.xrun: ${XRUN_ELAB_STAMP}
 	mkdir -p bin bin/logs
 	@echo '#!/bin/bash' > $@
 	@echo 'set -e' >> $@
@@ -396,21 +406,35 @@ bin/spatz_cluster.xrun: ${XRUN_BUILDDIR}/xcelium.d
 	@echo 'cd $$RUNDIR' >> $@
 	@echo 'exec xrun +permissive -64 -R -xmlibdirpath ${XRUN_SNAPSHOT_DIR} +permissive-off ++$$ELF "$$@"' >> $@
 	@chmod +x $@
-	@sed 's/-R -xmlibdirpath/-R -gui -xmlibdirpath/' $@ > $@.gui
+	@# The GUI probes the whole hierarchy before running, so that any signal can be added to the waveform afterwards
+	@sed 's|-R -xmlibdirpath|-R -gui -input ${XRUN_PROBE_TCL} -xmlibdirpath|' $@ > $@.gui
 	@chmod +x $@.gui
 # alias
 .PHONY: xrun
 xrun: bin/spatz_cluster.xrun
-	
+
+# Run a test with Xcelium
+spatz_cluster.xrun: ./bin/spatz_cluster.xrun
+	$(check_test)
+	./bin/spatz_cluster.xrun $$(realpath ${TEST})
+
+# Run a test with Xcelium (SimVision GUI)
+spatz_cluster.xrun.gui: ./bin/spatz_cluster.xrun
+	$(check_test)
+	./bin/spatz_cluster.xrun.gui $$(realpath ${TEST})
+
+clean.xrun:
+	rm -rf work-xrun work-xrun-runs work/lib/libfesvr_xrun.a bin/spatz_cluster.xrun bin/spatz_cluster.xrun.gui
+
 .PHONY: clean.xrun spatz_cluster.xrun spatz_cluster.xrun.gui
 
 #######
 # VCS #
 #######
 
-work-vcs/compile.sh: $(CFG_STAMP) $(CURDIR)/src/generated/bootrom.sv
+${VCS_BUILDDIR}/compile.sh: $(CFG_STAMP) $(CURDIR)/src/generated/bootrom.sv
 
-bin/spatz_cluster.vcs: $(CFG_STAMP) test/bootrom.bin work-vcs/compile.sh work/lib/libfesvr_vcs.a ${TB_DIR}/common_lib.cc test/bootdata.cc test/uartdpi/uartdpi.c
+bin/spatz_cluster.vcs: $(CFG_STAMP) test/bootrom.bin ${VCS_BUILDDIR}/compile.sh work/lib/libfesvr_vcs.a ${TB_DIR}/common_lib.cc test/bootdata.cc test/uartdpi/uartdpi.c
 	mkdir -p bin bin/logs
 	$(VCS) $(VCS_COMMON_FLAGS) $(VCS_DEBUG_FLAGS) \
 	    -o ${MKFILE_DIR}$@.simv \
@@ -433,7 +457,7 @@ bin/spatz_cluster.vcs: $(CFG_STAMP) test/bootrom.bin work-vcs/compile.sh work/li
 	@echo 'echo `realpath $$1` > ${MKFILE_DIR}bin/logs/.rtlbinary' >> $@.gui
 	@echo 'UCLI_CMD=${MKFILE_DIR}bin/logs/vcs_gui_auto_run.ucli' >> $@.gui
 	@echo 'echo "run" > $$UCLI_CMD' >> $@.gui
-	@echo 'exec ${MKFILE_DIR}$@.simv -gui=$(VERDI_GUI) -ucli -do $$UCLI_CMD "$$@" -l ${MKFILE_DIR}bin/logs/vcs_gui.log < /dev/null' >> $@.gui
+	@echo 'exec ${MKFILE_DIR}$@.simv -gui=$(VERDI_GUI) -ucli -do $$UCLI_CMD "$$@" +fsdb -l ${MKFILE_DIR}bin/logs/vcs_gui.log < /dev/null' >> $@.gui
 	@chmod +x $@.gui
 # alias
 .PHONY: vcs
@@ -451,7 +475,7 @@ spatz_cluster.vcs.gui: bin/spatz_cluster.vcs
 
 ## Clean all build directories and temporary files for VCS simulation
 clean.vcs:
-	rm -rf bin/spatz_cluster.vcs bin/spatz_cluster.vcs.gui vcs.simv work-vcs work.lib++ AN.DB work vc_hdrs.h
+	rm -rf bin/spatz_cluster.vcs bin/spatz_cluster.vcs.gui bin/spatz_cluster.vcs.simv bin/spatz_cluster.vcs.simv.daidir ${VCS_BUILDDIR} work/lib/libfesvr_vcs.a work.lib++ AN.DB vc_hdrs.h
 
 .PHONY: clean.vcs spatz_cluster.vcs spatz_cluster.vcs.gui
 
@@ -473,53 +497,40 @@ lint/tmp/files: ${BENDER}
 # SW #
 ######
 
+SIM_TOOLS := vsim vlt vcs xrun
+
+# Configure and build SW into sw/build.
+# $(1): optional RTL simulator used by ctest to run the tests
+define SW_BUILD
+	mkdir -p sw/build
+	cd sw/build && ${CMAKE} -DLLVM_PATH=${LLVM_INSTALL_DIR} -DGCC_PATH=${GCC_INSTALL_DIR} -DPYTHON=${PYTHON} $(if $(1),-DSNITCH_SIMULATOR=$(1)) -DBUILD_TESTS=ON -DRUNTIME_PRINT=${PRINT} -DRUNTIME_TRACE=${TRACE} -DSPATZ_CLUSTER_CFG=spatz_cluster.${SPATZ_CLUSTER_CFG}.dram.hjson ${SPATZ_CLUSTER_CFG_DEFINES} .. && make -j8
+endef
+
 ## Build SW into sw/build with the LLVM toolchain
 sw: $(CFG_STAMP) clean.sw spatz.gendata
-	mkdir -p sw/build
-	cd sw/build && ${CMAKE} -DLLVM_PATH=${LLVM_INSTALL_DIR} -DGCC_PATH=${GCC_INSTALL_DIR} -DPYTHON=${PYTHON} -DBUILD_TESTS=ON -DRUNTIME_PRINT=${PRINT} -DRUNTIME_TRACE=${TRACE} -DSPATZ_CLUSTER_CFG=spatz_cluster.${SPATZ_CLUSTER_CFG}.dram.hjson ${SPATZ_CLUSTER_CFG_DEFINES} .. && make -j8
+	$(call SW_BUILD)
 
-# VSIM
-## Build SW into sw/build with the LLVM toolchain (including tests) for Questasim simulator
-sw.vsim: $(CFG_STAMP) clean.sw bin/spatz_cluster.vsim spatz.gendata
-	mkdir -p sw/build
-	cd sw/build && ${CMAKE} -DLLVM_PATH=${LLVM_INSTALL_DIR} -DGCC_PATH=${GCC_INSTALL_DIR} -DPYTHON=${PYTHON} -DSNITCH_SIMULATOR=../../../../../hw/system/spatz_cluster/bin/spatz_cluster.vsim -DBUILD_TESTS=ON -DRUNTIME_PRINT=${PRINT} -DRUNTIME_TRACE=${TRACE} -DSPATZ_CLUSTER_CFG=spatz_cluster.${SPATZ_CLUSTER_CFG}.dram.hjson ${SPATZ_CLUSTER_CFG_DEFINES} .. && make -j8
+## Build SW into sw/build with the LLVM toolchain (including tests) for the <tool> simulator
+$(addprefix sw.,$(SIM_TOOLS)): sw.%: $(CFG_STAMP) clean.sw bin/spatz_cluster.% spatz.gendata
+	$(call SW_BUILD,${MKFILE_DIR}bin/spatz_cluster.$*)
 
-# XRUN
-## Build SW into sw/build with the LLVM toolchain (including tests) for Xcelium simulator
-sw.xrun: $(CFG_STAMP) clean.sw bin/spatz_cluster.xrun spatz.gendata
-	mkdir -p sw/build
-	cd sw/build && ${CMAKE} -DLLVM_PATH=${LLVM_INSTALL_DIR} -DGCC_PATH=${GCC_INSTALL_DIR} -DPYTHON=${PYTHON} -DSNITCH_SIMULATOR=../../../../../hw/system/spatz_cluster/bin/spatz_cluster.xrun -DBUILD_TESTS=ON -DRUNTIME_PRINT=${PRINT} -DRUNTIME_TRACE=${TRACE} -DSPATZ_CLUSTER_CFG=spatz_cluster.${SPATZ_CLUSTER_CFG}.dram.hjson ${SPATZ_CLUSTER_CFG_DEFINES} .. && make -j8
-
-# VCS
-## Build SW into sw/build with the LLVM toolchain (including tests) for VCS simulator
-sw.vcs: $(CFG_STAMP) clean.sw bin/spatz_cluster.vcs bin/spatz_cluster.vcs.gui spatz.gendata
-	mkdir -p sw/build
-	cd sw/build && ${CMAKE} -DLLVM_PATH=${LLVM_INSTALL_DIR} -DGCC_PATH=${GCC_INSTALL_DIR} -DPYTHON=${PYTHON} -DSNITCH_SIMULATOR=../../../../../hw/system/spatz_cluster/bin/spatz_cluster.vcs -DBUILD_TESTS=ON -DRUNTIME_PRINT=${PRINT} -DRUNTIME_TRACE=${TRACE} -DSPATZ_CLUSTER_CFG=spatz_cluster.${SPATZ_CLUSTER_CFG}.dram.hjson ${SPATZ_CLUSTER_CFG_DEFINES} .. && make -j8
-
-# VLT
-## Build SW into sw/build with the LLVM toolchain (including tests) for Verilator simulator
-sw.vlt: $(CFG_STAMP) clean.sw bin/spatz_cluster.vlt spatz.gendata
-	mkdir -p sw/build
-	cd sw/build && ${CMAKE} -DLLVM_PATH=${LLVM_INSTALL_DIR} -DGCC_PATH=${GCC_INSTALL_DIR} -DPYTHON=${PYTHON} -DSNITCH_SIMULATOR=../../../../../hw/system/spatz_cluster/bin/spatz_cluster.vlt -DBUILD_TESTS=ON -DRUNTIME_PRINT=${PRINT} -DRUNTIME_TRACE=${TRACE} -DSPATZ_CLUSTER_CFG=spatz_cluster.${SPATZ_CLUSTER_CFG}.dram.hjson ${SPATZ_CLUSTER_CFG_DEFINES} .. && make -j8
-
-#if the suite is not passed as a command line argument, reuse the last one (riscvTests by default)
+# If the suite is not passed as a command line argument, reuse the last one (riscvTests by default)
 ifeq ($(origin SUITE),undefined)
 SUITE := $(shell cat $(SUITE_STAMP) 2>/dev/null || echo riscvTests)
 endif
 
-CTEST_ARGS ?= --output-on-failure -j4
+# Commercial simulators share transcripts/logs in the working directory: run the tests serially.
+# Verilator runs are independent, so they can run in parallel.
+ifeq ($(origin CTEST_ARGS),undefined)
+CTEST_ARGS := --output-on-failure
+spatz_cluster.vlt.test: CTEST_ARGS := --output-on-failure -j4
+endif
 
-spatz_cluster.vsim.test: ${SUITE_STAMP} sw.vsim
+## Build SW and run all the tests of SUITE with the <tool> simulator
+$(addprefix spatz_cluster.,$(addsuffix .test,$(SIM_TOOLS))): spatz_cluster.%.test: ${SUITE_STAMP} sw.%
 	cd sw/build/${SUITE} && ctest ${CTEST_ARGS}
 
-spatz_cluster.vlt.test: ${SUITE_STAMP} sw.vlt
-	cd sw/build/${SUITE} && ctest ${CTEST_ARGS}
-
-spatz_cluster.xrun.test: ${SUITE_STAMP} sw.xrun
-	cd sw/build/${SUITE} && ctest ${CTEST_ARGS}
-
-spatz_cluster.vcs.test: ${SUITE_STAMP} sw.vcs
-	cd sw/build/${SUITE} && ctest ${CTEST_ARGS}
+.PHONY: sw $(addprefix sw.,$(SIM_TOOLS)) $(addprefix spatz_cluster.,$(addsuffix .test,$(SIM_TOOLS)))
 
 ## Delete sw/build
 clean.sw:
@@ -538,15 +549,19 @@ clean: clean.vcs clean.vlt clean.vsim clean.sw clean.xrun
 clean.logs:
 	rm -rf logs/
 
+.PHONY: clean clean.sw clean.logs help
+
 ## Help command
 .DEFAULT_GOAL := help
 Blue=\033[1;34m
 Black=\033[0m
+empty :=
+space := $(empty) $(empty)
 help:
 	@echo -e "${Blue}Makefile Targets${Black} for the ${Blue}Spatz Cluster${Black}"
 	@echo -e "Options:"
-	@echo -e "<tool> = vsim/vlt/vcs/xrun"
-	@echo -e "<cfg> = default/32b/smallvrf/doublebw/ventaglio"
+	@echo -e "<tool> = $(subst $(space),/,$(SIM_TOOLS))"
+	@echo -e "<cfg> = $(subst $(space),/,$(SPATZ_CLUSTER_CFGS))"
 	@echo -e "<suite> = snRuntime/riscvTests/spatzBenchmarks"
 	@echo -e "<ctest_args> = --output-on-failure/-j4/--verbose/-R spatzBenchmarks-rtl-sp-SpM"
 	@echo -e ""
@@ -558,8 +573,7 @@ help:
 	@echo -e "${Blue}help           ${Black}Show an overview of all Makefile targets."
 	@echo -e ""
 	@echo -e "${Blue}sw             ${Black}Build only the SW into sw/build with the LLVM toolchain."
-	@echo -e "${Blue}sw.<tool>      ${Black}Build SW for QuestaSim"
-	
+	@echo -e "${Blue}sw.<tool>      ${Black}Build the RTL for <tool> if needed and the SW, with ctest configured to run on <tool>."
 	@echo -e ""
 	@echo -e "${Blue}spatz_cluster.<tool>.test SUITE=<suite> CTEST_ARGS=<ctest_args>   ${Black}Build SW and run all tests with specified tool for the specified suite"
 	@echo -e ""
