@@ -13,6 +13,6 @@ verdiLog
 novas.conf
 novas.rc
 qrun.out
-*bootrom.elf
-*/generated/*
-*riscv_instr.sv
+./*bootrom.elf
+./*generated/*
+./*riscv_instr.sv
