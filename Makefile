@@ -233,11 +233,13 @@ check-bender:
 		fi \
 	fi
 	@$(MAKE) -C $(ROOT_DIR) $(BENDER_INSTALL_DIR)/bender
-	ln -sfn $$(find "$(ROOT_DIR)/.bender/git/checkouts" -maxdepth 1 -type d -name 'spatz_vpu-*' | head -n1) $(ROOT_DIR)/hw/spatz_vpu
-
-$(BENDER_INSTALL_DIR)/bender:
-	mkdir -p $(BENDER_INSTALL_DIR) && cd $(BENDER_INSTALL_DIR) && \
-	curl --proto '=https' --tlsv1.2 https://pulp-platform.github.io/bender/init -sSf | sh -s -- $(BENDER_VERSION)
+	# Check out all dependencies at the revisions in Bender.lock
+	cd $(ROOT_DIR) && $(BENDER) checkout
+	# Link hw/spatz_vpu to the sources Bender actually uses (checkout or Bender.local override)
+	@if [ -e $(ROOT_DIR)/hw/spatz_vpu ] && [ ! -L $(ROOT_DIR)/hw/spatz_vpu ]; then \
+		echo "ERROR: hw/spatz_vpu exists and is not a symlink, not overwriting it"; exit 1; \
+	fi
+	ln -sfn $$(cd $(ROOT_DIR) && $(BENDER) path spatz_vpu) $(ROOT_DIR)/hw/spatz_vpu
 
 ###############
 #  Verilator  #
