@@ -259,9 +259,9 @@ clean_opcodes:
 
 update_opcodes: clean_opcodes sw/toolchain/riscv-opcodes sw/toolchain/riscv-opcodes/encoding.h hw/ip/snitch/src/riscv_instr.sv
 hw/ip/snitch/src/riscv_instr.sv: sw/toolchain/riscv-opcodes
-	env -u VIRTUAL_ENV UV_LINK_MODE=copy make -C sw/toolchain/riscv-opcodes inst.sverilog EXTENSIONS='$(OPCODES)'
+	make -C sw/toolchain/riscv-opcodes inst.sverilog EXTENSIONS='$(OPCODES)'
 	mv sw/toolchain/riscv-opcodes/inst.sverilog $@
 
 sw/toolchain/riscv-opcodes/encoding.h:
-	env -u VIRTUAL_ENV UV_LINK_MODE=copy make -C sw/toolchain/riscv-opcodes encoding.out.h EXTENSIONS='$(OPCODES)'
+	make -C sw/toolchain/riscv-opcodes encoding.out.h EXTENSIONS='$(OPCODES)'
 	cp sw/toolchain/riscv-opcodes/encoding.out.h $@
