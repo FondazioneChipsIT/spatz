@@ -58,6 +58,9 @@ endif
 SPATZ_CLUSTER_CFG_DEFINES :=
 
 ifneq ($(SKIP_CFG),1)
+ifeq ($(wildcard $(SPATZ_DIR)/hw/ip/snitch/src/riscv_instr.sv),)
+$(error hw/ip/snitch/src/riscv_instr.sv not found: run `make init` in the repository root first)
+endif
 ifeq ($(wildcard $(SPATZ_CLUSTER_CFG_PATH)),)
 $(error Configuration '$(SPATZ_CLUSTER_CFG)' not found ($(SPATZ_CLUSTER_CFG_PATH)). Use SPATZ_CLUSTER_CFG=<cfg> with <cfg> one of: $(SPATZ_CLUSTER_CFGS))
 endif
