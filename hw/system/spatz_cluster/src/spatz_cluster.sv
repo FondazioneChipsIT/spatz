@@ -743,7 +743,7 @@ module spatz_cluster
       .XF16                    (1'b1                       ),
       .XF16ALT                 (1'b1                       ),
       .XF8                     (1'b1                       ),
-      .XF8ALT                  (1'b1                       ),
+      .XF8ALT                  (1'b0                       ),
       .IsoCrossing             (1'b0                       ),
       .NumSpatzFPUs            (NumSpatzFPUs[i]            ),
       .NumSpatzIPUs            (NumSpatzIPUs[i]            ),
