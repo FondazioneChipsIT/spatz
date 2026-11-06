@@ -107,7 +107,7 @@ module snitch import snitch_pkg::*; import riscv_instr::*; #(
   input  logic    [1:0] ptw_is_4mega_i,
   // FPU **un-timed** Side-channel
   output fpnew_pkg::roundmode_e     fpu_rnd_mode_o,
-  output fpnew_pkg::fmt_mode_t      fpu_fmt_mode_o,
+  output fmt_mode_t                 fpu_fmt_mode_o,
   input  fpnew_pkg::status_t        fpu_status_i,
   // Core events for performance counters
   output snitch_pkg::core_events_t  core_events_o
@@ -320,7 +320,7 @@ module snitch import snitch_pkg::*; import riscv_instr::*; #(
   `FFAR(debug_q, debug_d, '0, clk_i, rst_i) // Debug mode
 
   typedef struct packed {
-    fpnew_pkg::fmt_mode_t  fmode;
+    fmt_mode_t             fmode;
     fpnew_pkg::roundmode_e frm;
     fpnew_pkg::status_t    fflags;
   } fcsr_t;
@@ -3172,7 +3172,7 @@ module snitch import snitch_pkg::*; import riscv_instr::*; #(
             if (FP_EN) begin
               csr_rvalue = {30'b0, fcsr_q.fmode};
               read_fcsr  = 1'b1;
-              if (!exception) fcsr_d.fmode = fpnew_pkg::fmt_mode_t'(alu_result[1:0]);
+              if (!exception) fcsr_d.fmode = fmt_mode_t'(alu_result[1:0]);
             end else illegal_csr = 1'b1;
           end
           CSR_FCSR: begin

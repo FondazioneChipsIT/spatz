@@ -7,6 +7,12 @@
 
 package snitch_pkg;
 
+  // define fmt_mode in snitch pkg (openhw fpu integration)
+  typedef struct packed {
+    logic src;
+    logic dst;
+  } fmt_mode_t;
+
   localparam dm::hartinfo_t SnitchHartinfo = '{
     zero1: '0,
     nscratch: 1,

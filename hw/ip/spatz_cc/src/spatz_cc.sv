@@ -142,8 +142,8 @@ module spatz_cc
   logic acc_demux_snitch_valid, acc_demux_snitch_ready;
 
   fpnew_pkg::roundmode_e fpu_rnd_mode;
-  fpnew_pkg::fmt_mode_t fpu_fmt_mode;
-  fpnew_pkg::status_t fpu_status;
+  snitch_pkg::fmt_mode_t fpu_fmt_mode;
+  fpnew_pkg::status_t    fpu_status;
 
   core_events_t snitch_events;
 
