@@ -84,59 +84,47 @@ package spatz_cluster_pkg;
                         2, // FP64
                         0, // FP16
                         0, // FP8
-                        0, // FP16alt
-                        0  // FP8alt
+                        0 // FP16alt
                       },
-                    '{1, 1, 1, 1, 1, 1},   // DIVSQRT
+                    '{1, 1, 1, 1, 1},   // DIVSQRT
                     '{1,
                       1,
                       1,
                       1,
-                      1,
-                      1},   // NONCOMP
+                      1
+                      },   // NONCOMP
                     '{2,
                       2,
                       2,
                       2,
-                      2,
-                      2},   // CONV
-                    '{2,
-                      2,
-                      2,
-                      2,
-                      2,
-                      2}    // DOTP
+                      2
+                      }   // CONV
                     },
         UnitTypes: '{'{fpnew_pkg::MERGED,
                        fpnew_pkg::MERGED,
                        fpnew_pkg::MERGED,
                        fpnew_pkg::MERGED,
-                       fpnew_pkg::MERGED,
-                       fpnew_pkg::MERGED},  // FMA
-                    '{fpnew_pkg::DISABLED,
-                        fpnew_pkg::DISABLED,
-                        fpnew_pkg::DISABLED,
-                        fpnew_pkg::DISABLED,
-                        fpnew_pkg::DISABLED,
-                        fpnew_pkg::DISABLED}, // DIVSQRT
+                       fpnew_pkg::MERGED
+                       },  // FMA
+                    '{fpnew_pkg::MERGED,
+                        fpnew_pkg::MERGED,
+                        fpnew_pkg::MERGED,
+                        fpnew_pkg::MERGED,
+                        fpnew_pkg::MERGED
+                        }, // DIVSQRT
                     '{fpnew_pkg::PARALLEL,
                         fpnew_pkg::PARALLEL,
                         fpnew_pkg::PARALLEL,
                         fpnew_pkg::PARALLEL,
-                        fpnew_pkg::PARALLEL,
-                        fpnew_pkg::PARALLEL}, // NONCOMP
+                        fpnew_pkg::PARALLEL
+                        }, // NONCOMP
                     '{fpnew_pkg::MERGED,
                         fpnew_pkg::MERGED,
                         fpnew_pkg::MERGED,
                         fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED},   // CONV
-                    '{fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED}},  // DOTP
+                        fpnew_pkg::MERGED
+                        }   // CONV
+                    },
         PipeConfig: fpnew_pkg::BEFORE
     },
     '{
@@ -146,59 +134,47 @@ package spatz_cluster_pkg;
                         2, // FP64
                         0, // FP16
                         0, // FP8
-                        0, // FP16alt
-                        0  // FP8alt
+                        0 // FP16alt
                       },
-                    '{1, 1, 1, 1, 1, 1},   // DIVSQRT
+                    '{1, 1, 1, 1, 1},   // DIVSQRT
                     '{1,
                       1,
                       1,
                       1,
-                      1,
-                      1},   // NONCOMP
+                      1
+                      },   // NONCOMP
                     '{2,
                       2,
                       2,
                       2,
-                      2,
-                      2},   // CONV
-                    '{2,
-                      2,
-                      2,
-                      2,
-                      2,
-                      2}    // DOTP
+                      2
+                      }   // CONV
                     },
         UnitTypes: '{'{fpnew_pkg::MERGED,
                        fpnew_pkg::MERGED,
                        fpnew_pkg::MERGED,
                        fpnew_pkg::MERGED,
-                       fpnew_pkg::MERGED,
-                       fpnew_pkg::MERGED},  // FMA
-                    '{fpnew_pkg::DISABLED,
-                        fpnew_pkg::DISABLED,
-                        fpnew_pkg::DISABLED,
-                        fpnew_pkg::DISABLED,
-                        fpnew_pkg::DISABLED,
-                        fpnew_pkg::DISABLED}, // DIVSQRT
+                       fpnew_pkg::MERGED
+                       },  // FMA
+                    '{fpnew_pkg::MERGED,
+                        fpnew_pkg::MERGED,
+                        fpnew_pkg::MERGED,
+                        fpnew_pkg::MERGED,
+                        fpnew_pkg::MERGED
+                        }, // DIVSQRT
                     '{fpnew_pkg::PARALLEL,
                         fpnew_pkg::PARALLEL,
                         fpnew_pkg::PARALLEL,
                         fpnew_pkg::PARALLEL,
-                        fpnew_pkg::PARALLEL,
-                        fpnew_pkg::PARALLEL}, // NONCOMP
+                        fpnew_pkg::PARALLEL
+                        }, // NONCOMP
                     '{fpnew_pkg::MERGED,
                         fpnew_pkg::MERGED,
                         fpnew_pkg::MERGED,
                         fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED},   // CONV
-                    '{fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED,
-                        fpnew_pkg::MERGED}},  // DOTP
+                        fpnew_pkg::MERGED
+                        }   // CONV
+                    },
         PipeConfig: fpnew_pkg::BEFORE
     }
   };
