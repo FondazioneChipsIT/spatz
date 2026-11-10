@@ -56,7 +56,7 @@ packages:
       Git: https://github.com/pulp-platform/common_verification.git
     dependencies: []
   fpnew:
-    revision: 7093289d00ec842c94ca973e2d5ba9301fb11363
+    revision: 10a38cf1d44bf8da7d44916117b15a1a8036d028
     version: null
     source:
       Git: https://github.com/openhwgroup/cvfpu.git
@@ -133,7 +133,7 @@ packages:
     - riscv-dbg
     - tech_cells_generic
   spatz_vpu:
-    revision: 15c4e8f75a0cac241ce8ad11b98317d003ee0146
+    revision: 1a103ec742d9466dbba698eef474e00b1e49b25d
     version: null
     source:
       Git: https://github.com/FondazioneChipsIT/spatz_vpu.git
