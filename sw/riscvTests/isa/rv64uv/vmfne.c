@@ -451,16 +451,15 @@ void TEST_CASE7(void) {
 
 
   // Give sNaN (Invalid operation)
-  VSET(16, e32, m8);
+  VSET(16, e32, m2);
   VLOAD_32(v2, 0x3f75db3c, sNaNf, sNaNf, qNaNf, 0x3f75db3c, 0xbf4f6872,
            0xbf3180f6, 0x3f3464fe, 0xbe9e4f82, 0xbea1c6a1, 0xbf6bd1a2,
            0x3f036ba4, qNaNf, qNaNf, 0x3f3110b0, qNaNf);
-  VLOAD_32(v3, 0x3f75db3c, 0x3dcb7174, qNaNf, 0xbf518bb7, 0x3f75db3c,
+  VLOAD_32(v4, 0x3f75db3c, 0x3dcb7174, qNaNf, 0xbf518bb7, 0x3f75db3c,
            0xbf4f6872, 0xbee50bcd, 0xbe829d5c, 0xbe9e4f82, 0xbea1c6a1,
            0x3e447c62, 0xbe96125b, qNaNf, 0x3ef8d43a, qNaNf, qNaNf);
   VLOAD_8(v0, 0xAA, 0xAA);
-  VCLEAR(v1);
-  asm volatile("vmfne.vv v0, v2, v3");
+  asm volatile("vmfne.vv v0, v2, v4");
   VSET(1, e16, m1);
   VCMP_U16(22, v0, 0xfcce);
   CHECK_FFLAGS(NV);
