@@ -109,7 +109,7 @@ module spatz_mempool_cc
 
   // Spatz floating point signals
   fpnew_pkg::roundmode_e fpu_rnd_mode;
-  fpnew_pkg::fmt_mode_t fpu_fmt_mode;
+  snitch_pkg::fmt_mode_t fpu_fmt_mode;
   fpnew_pkg::status_t fpu_status;
   acc_issue_rsp_t acc_req_rsp;
 

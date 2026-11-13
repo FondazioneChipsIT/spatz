@@ -56,10 +56,10 @@ packages:
       Git: https://github.com/pulp-platform/common_verification.git
     dependencies: []
   fpnew:
-    revision: e5aa6a01b5bbe1675c3aa8872e1203413ded83d1
+    revision: 10a38cf1d44bf8da7d44916117b15a1a8036d028
     version: null
     source:
-      Git: https://github.com/pulp-platform/cvfpu.git
+      Git: https://github.com/openhwgroup/cvfpu.git
     dependencies:
     - common_cells
     - fpu_div_sqrt_mvp
@@ -133,7 +133,7 @@ packages:
     - riscv-dbg
     - tech_cells_generic
   spatz_vpu:
-    revision: 83bc43db602877606270cafa1fea5d95b7895083
+    revision: 20de9cf0257fc37929a5f153b2083bd3a446352f
     version: null
     source:
       Git: https://github.com/FondazioneChipsIT/spatz_vpu.git

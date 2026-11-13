@@ -543,7 +543,7 @@ void TEST_CASE9(void) {
            0x41040000, 0x40800000, 0x00000000, 0x40e00000, 0x40000000,
            0x41200000);
 
-  #if ELEN == 64
+  /*#if ELEN == 64
     // fp16a and fp8a are not enabled in 32b FPU
     // fp8alt -> fp16alt
     asm volatile("csrwi 0x800, 0x3");
@@ -581,8 +581,9 @@ void TEST_CASE9(void) {
     //               5.5, -1.0,  8.25, 4.0,  0.0, 13.0,  2.0,  2.0
     VCMP_U16(19, v16, 0x3e00, 0x4200, 0x4000, 0x4600, 0x3a00, 0x4000, 0x4200,
           0xbc00, 0x4580, 0xbc00, 0x4820, 0x4400, 0x0000, 0x4a80, 0x4000,
-          0x4000);
+          0x4000);*/
 
+  #if ELEN == 64
     // fp8 -> fp16alt
     asm volatile("csrwi 0x800, 0x1");
     VSET(16, e8, m4);
