@@ -87,7 +87,7 @@ int test_case;
     num_failed++;                                                              \
     return;                                                                    \
   }                                                                            \
-  printf("PASSED.\n");  
+  printf("PASSED.\n");
 
 // Zero-initialized variables can be problematic on bare-metal.
 // Therefore, initialize them during runtime.
