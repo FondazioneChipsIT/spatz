@@ -439,6 +439,112 @@ void TEST_CASE8(void) {
 #endif
 };
 
+// fadd.s rtz with frm = RUP: 1.0 + 0.75ulp -> 1.0 (RUP would give 1.0+ulp)
+void TEST_CASE9(void) {
+  float a, b, r;
+  BOX_FLOAT_IN_FLOAT(a, 0x3F800000); // 1.0
+  BOX_FLOAT_IN_FLOAT(b, 0x33C00000); // 1.5 * 2^-24 = 0.75 ulp of 1.0
+  CHANGE_RM(RM_RUP);
+  asm volatile("fadd.s %0, %1, %2, rtz" : "=f"(r) : "f"(a), "f"(b));
+  FCMP32(24, r, 0x3F800000);
+}
+
+// fadd.s rup with frm = RTZ: 1.0 + 0.75ulp -> 1.0+ulp (RTZ would give 1.0)
+void TEST_CASE10(void) {
+  float a, b, r;
+  BOX_FLOAT_IN_FLOAT(a, 0x3F800000); // 1.0
+  BOX_FLOAT_IN_FLOAT(b, 0x33C00000); // 0.75 ulp of 1.0
+  CHANGE_RM(RM_RTZ);
+  asm volatile("fadd.s %0, %1, %2, rup" : "=f"(r) : "f"(a), "f"(b));
+  FCMP32(25, r, 0x3F800001);
+}
+
+// fadd.s rmm with frm = RNE on a tie: RMM -> 1.0+ulp, RNE -> 1.0 (even)
+void TEST_CASE11(void) {
+  float a, b, r;
+  BOX_FLOAT_IN_FLOAT(a, 0x3F800000); // 1.0
+  BOX_FLOAT_IN_FLOAT(b, 0x33800000); // 2^-24 = exactly 0.5 ulp of 1.0
+  CHANGE_RM(RM_RNE);
+  asm volatile("fadd.s %0, %1, %2, rmm" : "=f"(r) : "f"(a), "f"(b));
+  FCMP32(26, r, 0x3F800001);
+}
+
+// fadd.s dyn with frm = RUP: 1.0 + 0.75ulp -> 1.0+ulp
+void TEST_CASE12(void) {
+  float a, b, r;
+  BOX_FLOAT_IN_FLOAT(a, 0x3F800000); // 1.0
+  BOX_FLOAT_IN_FLOAT(b, 0x33C00000); // 0.75 ulp of 1.0
+  CHANGE_RM(RM_RUP);
+  asm volatile("fadd.s %0, %1, %2, dyn" : "=f"(r) : "f"(a), "f"(b));
+  FCMP32(27, r, 0x3F800001);
+}
+
+#if ELEN == 64
+// NaN-boxing of scalar narrow FP ops (D18). FPRs are 64 bit: a narrow operand
+// whose upper bits are not all 1s must be treated as the canonical NaN, and a
+// narrow result must be written back with all upper bits set. Operands are
+// loaded and the result stored with fld/fsd so all 64 FPR bits are visible.
+#define FP_RAW_BINOP(INSN, RES, A, B)                                          \
+  do {                                                                         \
+    volatile uint64_t src_a = (A), src_b = (B), dst = 0;                       \
+    asm volatile("fld fa0, 0(%[a])\n"                                          \
+                 "fld fa1, 0(%[b])\n" INSN " fa2, fa0, fa1, rne\n"             \
+                 "fsd fa2, 0(%[d])\n"                                          \
+                 "fence\n"                                                     \
+                 :                                                             \
+                 : [a] "r"(&src_a), [b] "r"(&src_b), [d] "r"(&dst)             \
+                 : "fa0", "fa1", "fa2", "memory");                             \
+    RES = dst;                                                                 \
+  } while (0)
+
+// fadd.s, boxed inputs: 1.0 + 2.0 = 3.0, result must be NaN-boxed
+void TEST_CASE13(void) {
+  uint64_t r;
+  FP_RAW_BINOP("fadd.s", r, 0xFFFFFFFF3F800000ULL, 0xFFFFFFFF40000000ULL);
+  FCMP64(28, r, 0xFFFFFFFF40400000ULL);
+}
+
+// fadd.s, rs1 not boxed: must be treated as canonical NaN -> boxed qNaN
+void TEST_CASE14(void) {
+  uint64_t r;
+  FP_RAW_BINOP("fadd.s", r, 0x000000003F800000ULL, 0xFFFFFFFF40000000ULL);
+  FCMP64(29, r, 0xFFFFFFFF7FC00000ULL);
+}
+
+// fadd.h, boxed inputs: 1.0 + 2.0 = 3.0, result must be NaN-boxed
+void TEST_CASE15(void) {
+  uint64_t r;
+  FP_RAW_BINOP("fadd.h", r, 0xFFFFFFFFFFFF3C00ULL, 0xFFFFFFFFFFFF4000ULL);
+  FCMP64(30, r, 0xFFFFFFFFFFFF4200ULL);
+}
+
+// fadd.h, rs1 boxed as FP32 but not as FP16 ([31:16] = 0): still invalid,
+// must be treated as canonical NaN -> boxed qNaN
+void TEST_CASE16(void) {
+  uint64_t r;
+  FP_RAW_BINOP("fadd.h", r, 0xFFFFFFFF00003C00ULL, 0xFFFFFFFFFFFF4000ULL);
+  FCMP64(31, r, 0xFFFFFFFFFFFF7E00ULL);
+}
+
+// FP8 is FPnew's binary8 (E5M2): 1.0 = 0x3C, 2.0 = 0x40, 3.0 = 0x42,
+// canonical NaN = 0x7E
+
+// fadd.b, boxed inputs: 1.0 + 2.0 = 3.0, result must be NaN-boxed
+void TEST_CASE17(void) {
+  uint64_t r;
+  FP_RAW_BINOP("fadd.b", r, 0xFFFFFFFFFFFFFF3CULL, 0xFFFFFFFFFFFFFF40ULL);
+  FCMP64(32, r, 0xFFFFFFFFFFFFFF42ULL);
+}
+
+// fadd.b, rs1 boxed as FP16 but not as FP8 ([15:8] = 0): still invalid,
+// must be treated as canonical NaN -> boxed qNaN
+void TEST_CASE18(void) {
+  uint64_t r;
+  FP_RAW_BINOP("fadd.b", r, 0xFFFFFFFFFFFF003CULL, 0xFFFFFFFFFFFFFF40ULL);
+  FCMP64(33, r, 0xFFFFFFFFFFFFFF7EULL);
+}
+#endif
+
 int main(void) {
   INIT_CHECK();
   enable_vec();
@@ -453,6 +559,23 @@ int main(void) {
   TEST_CASE6();
   TEST_CASE7();
   TEST_CASE8();
+
+  // Scalar static-rm cases change frm: run them last and restore RNE
+  TEST_CASE9();
+  TEST_CASE10();
+  TEST_CASE11();
+  TEST_CASE12();
+  CHANGE_RM(RM_RNE);
+
+#if ELEN == 64
+  // Scalar NaN-boxing (D18)
+  TEST_CASE13();
+  TEST_CASE14();
+  TEST_CASE15();
+  TEST_CASE16();
+  TEST_CASE17();
+  TEST_CASE18();
+#endif
 
   EXIT_CHECK();
 }

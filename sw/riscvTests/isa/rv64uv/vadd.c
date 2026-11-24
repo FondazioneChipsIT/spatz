@@ -260,7 +260,49 @@ void TEST_CASE_MF8() {
   VCMP_U8(27, v3, 11, 12, 13, 14);
 }
 
+#define ALT4(a, b) a, b, a, b
+#define ALT16(a, b) ALT4(a, b), ALT4(a, b), ALT4(a, b), ALT4(a, b)
 
+// Masked vadd at e8/m8 with vl = VLMAX (= VLEN elements): every v0 bit of the
+// full register must come from v0.
+// Regression for the READ_V0_t address bug: the VFU read the second v0 word
+// from v1 word 0, so on VLEN=512 elements 256..511 were masked with v1's bits.
+//
+// v0 = 0x55.. (even elements active), v1 = 0xaa.. (odd elements active, the
+// opposite pattern), vd pre-filled with 0x77, mask-undisturbed:
+//   even element -> 1 + 2 = 3, odd element -> 0x77 (unchanged)
+// A buggy DUT gives the swapped pattern from the second v0 word on.
+// The VLEN-byte result is dumped to memory and checked in two halves:
+// TC 28 = lower half of the elements, TC 29 = upper half.
+void TEST_CASE9(void) {
+  unsigned int vlenb;
+  asm volatile("csrr %0, vlenb" : "=r"(vlenb));
+  const unsigned int n = vlenb * 8; // VLMAX at e8/m8
+  const unsigned int half = n / 2;
+  uint8_t *res = (uint8_t *)snrt_l1alloc(n);
+  uint8_t *gold = (uint8_t *)snrt_l1alloc(n);
+  for (unsigned int i = 0; i < n; i++)
+    gold[i] = (i % 2 == 0) ? 3 : 0x77;
+
+  VSET(vlenb, e8, m1);
+  asm volatile("vmv.v.x v0, %0" ::"r"((uint64_t)0x55));
+  asm volatile("vmv.v.x v1, %0" ::"r"((uint64_t)0xaa));
+
+  {
+    unsigned int vl;
+    asm volatile("vsetvli %0, %1, e8, m8, ta, mu"
+                 : "=r"(vl)
+                 : "r"(n));
+  }
+  asm volatile("vmv.v.i v8, 1");
+  asm volatile("vmv.v.i v16, 2");
+  asm volatile("vmv.v.x v24, %0" ::"r"((uint64_t)0x77));
+  asm volatile("vadd.vv v24, v8, v16, v0.t");
+  asm volatile("vse8.v v24, (%0)" ::"r"(res) : "memory");
+
+  VMCMP(uint8_t, %hhu, 28, res, gold, half);
+  VMCMP(uint8_t, %hhu, 29, (res + half), (gold + half), half);
+}
 
 int main(void) {
   INIT_CHECK();
@@ -275,6 +317,7 @@ int main(void) {
   TEST_CASE7();
   TEST_CASE8();
   TEST_CASE_MF8();
+  TEST_CASE9();
 
   EXIT_CHECK();
 }

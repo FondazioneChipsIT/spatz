@@ -125,6 +125,42 @@ void TEST_CASE4 () {
 #endif
 }
 
+// vmv.s.x when vstart >= vl (RVV 1.0): no operation is performed and vd is not
+// updated. Element 0 is a prestart element as soon as vstart >= 1, and with
+// vl = 0 there is nothing to write either.
+void TEST_CASE5(void) {
+  uint32_t scalar = 0xdeadbeef;
+
+  // vstart = 1, vl = 4: v8 unchanged
+  VSET(4, e8, m1);
+  VLOAD_8(v8, 1, 2, 3, 4);
+  asm volatile("csrw vstart, 1");
+  asm volatile("vmv.s.x v8, %[a]" ::[a] "r"(scalar));
+  // vstart is reset to 0 by the (no-op) vector instruction itself
+  {
+    uint32_t vstart_after;
+    asm volatile("csrr %0, vstart" : "=r"(vstart_after));
+    asm volatile("csrw vstart, 0");
+    XCMP(17, vstart_after, 0);
+  }
+  VCMP_U8(18, v8, 1, 2, 3, 4);
+
+  // vl = 0: v8 unchanged
+  VSET(4, e8, m1);
+  VLOAD_8(v8, 1, 2, 3, 4);
+  VSET(0, e8, m1);
+  asm volatile("vmv.s.x v8, %[a]" ::[a] "r"(scalar));
+  VSET(4, e8, m1);
+  VCMP_U8(19, v8, 1, 2, 3, 4);
+
+  // Control: vstart = 0, vl = 4 -> element 0 written
+  VSET(4, e8, m1);
+  VLOAD_8(v8, 1, 2, 3, 4);
+  asm volatile("vmv.s.x v8, %[a]" ::[a] "r"(scalar));
+  VSET(1, e8, m1);
+  VCMP_U8(20, v8, 0xef);
+}
+
 int main(void) {
   INIT_CHECK();
   enable_vec();
@@ -133,6 +169,7 @@ int main(void) {
   TEST_CASE2();
   TEST_CASE3();
   TEST_CASE4();
+  TEST_CASE5();
 
   EXIT_CHECK();
 }

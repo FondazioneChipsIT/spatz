@@ -627,6 +627,40 @@ void TEST_CASE10(void) {
   VCMP_U32(21, v9, 0x40800000, 0x40800000, 0x40800000, 0x40800000);   // 3.0 + 1.0 = 4.0
 }
 
+// D14: widening of special narrow operands (+-0, subnormals, +-Inf).
+// Wide operand is +0, so the result is exactly the widened narrow operand.
+// -0 is not used: +0 + -0 = +0 would hide the sign.
+void TEST_CASE11(void) {
+  VSET(8, e16, m4);
+  VLOAD_32(v4, 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000,
+           0x00000000, 0x00000000, 0x00000000);
+  //            +0      -minsub minsub  maxsub  minnorm +Inf    -Inf    1.0
+  VLOAD_16(v8, 0x0000, 0x8001, 0x0001, 0x03ff, 0x0400, 0x7c00, 0xfc00, 0x3c00);
+  CLEAR_FFLAGS;
+  CHECK_FFLAGS(0);
+  asm volatile("vfwadd.wv v16, v4, v8");
+  VCMP_U32(22, v16, 0x00000000, 0xb3800000, 0x33800000, 0x387fc000, 0x38800000,
+           0x7f800000, 0xff800000, 0x3f800000);
+  CHECK_FFLAGS(0);
+
+#if ELEN == 64
+  VSET(8, e32, m4);
+  VLOAD_64(v4, 0x0000000000000000, 0x0000000000000000, 0x0000000000000000,
+           0x0000000000000000, 0x0000000000000000, 0x0000000000000000,
+           0x0000000000000000, 0x0000000000000000);
+  //            +0          -minsub     minsub      maxsub
+  //            minnorm     +Inf        -Inf        1.0
+  VLOAD_32(v8, 0x00000000, 0x80000001, 0x00000001, 0x007fffff, 0x00800000,
+           0x7f800000, 0xff800000, 0x3f800000);
+  CLEAR_FFLAGS;
+  asm volatile("vfwadd.wv v16, v4, v8");
+  VCMP_U64(23, v16, 0x0000000000000000, 0xb6a0000000000000, 0x36a0000000000000,
+           0x380fffffc0000000, 0x3810000000000000, 0x7ff0000000000000,
+           0xfff0000000000000, 0x3ff0000000000000);
+  CHECK_FFLAGS(0);
+#endif
+};
+
 int main(void) {
   INIT_CHECK();
   enable_vec();
@@ -643,6 +677,7 @@ int main(void) {
   TEST_CASE8();
   TEST_CASE9();
   TEST_CASE10();
+  TEST_CASE11();
 
   EXIT_CHECK();
 }

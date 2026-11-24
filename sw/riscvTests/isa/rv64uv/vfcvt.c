@@ -832,6 +832,69 @@ void TEST_CASE12(void) {
 #endif
 };
 
+// fcvt.s.w rup with frm = RTZ: 2^24+1 -> 0x4B800001 (RTZ -> 0x4B800000)
+void TEST_CASE13(void) {
+  int   x = 16777217;
+  float r;
+  CHANGE_RM(RM_RTZ);
+  asm volatile("fcvt.s.w %0, %1, rup" : "=f"(r) : "r"(x));
+  FCMP32(37, r, 0x4B800001);
+}
+
+// fcvt.w.s rtz with frm = RUP: 2.5 -> 2
+void TEST_CASE14(void) {
+  float a;
+  int   r;
+  BOX_FLOAT_IN_FLOAT(a, 0x40200000); // 2.5
+  CHANGE_RM(RM_RUP);
+  asm volatile("fcvt.w.s %0, %1, rtz" : "=r"(r) : "f"(a));
+  XCMP(38, r, 2);
+}
+
+// An unresolved DYN (111) reaching FPnew hits `default: round_up = DONT_CARE`
+// (= 1'b1) in fpnew_rounding and always rounds the magnitude up. The DYN
+// cases below therefore all expect a result that is NOT rounded up.
+
+// fcvt.w.s dyn with frm = RDN: 2.5 -> 2
+void TEST_CASE15(void) {
+  float a;
+  int   r;
+  BOX_FLOAT_IN_FLOAT(a, 0x40200000); // 2.5
+  CHANGE_RM(RM_RDN);
+  asm volatile("fcvt.w.s %0, %1, dyn" : "=r"(r) : "f"(a));
+  XCMP(39, r, 2);
+}
+
+// fcvt.w.s dyn with frm = RNE on a tie: 2.5 -> 2 (even)
+void TEST_CASE16(void) {
+  float a;
+  int   r;
+  BOX_FLOAT_IN_FLOAT(a, 0x40200000); // 2.5
+  CHANGE_RM(RM_RNE);
+  asm volatile("fcvt.w.s %0, %1, dyn" : "=r"(r) : "f"(a));
+  XCMP(40, r, 2);
+}
+
+// fcvt.wu.s dyn with frm = RTZ: 2.5 -> 2
+void TEST_CASE17(void) {
+  float    a;
+  unsigned r;
+  BOX_FLOAT_IN_FLOAT(a, 0x40200000); // 2.5
+  CHANGE_RM(RM_RTZ);
+  asm volatile("fcvt.wu.s %0, %1, dyn" : "=r"(r) : "f"(a));
+  XCMP(41, r, 2);
+}
+
+// fcvt.w.s dyn on an exact value, frm = RNE: 2.0 -> 2
+void TEST_CASE18(void) {
+  float a;
+  int   r;
+  BOX_FLOAT_IN_FLOAT(a, 0x40000000); // 2.0
+  CHANGE_RM(RM_RNE);
+  asm volatile("fcvt.w.s %0, %1, dyn" : "=r"(r) : "f"(a));
+  XCMP(42, r, 2);
+}
+
 int main(void) {
   INIT_CHECK();
   enable_vec();
@@ -854,6 +917,15 @@ int main(void) {
 
   TEST_CASE11();
   TEST_CASE12();
+
+  // Scalar static-rm cases change frm: run them last and restore RNE
+  TEST_CASE13();
+  TEST_CASE14();
+  TEST_CASE15();
+  TEST_CASE16();
+  TEST_CASE17();
+  TEST_CASE18();
+  CHANGE_RM(RM_RNE);
 
   EXIT_CHECK();
 }

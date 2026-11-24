@@ -504,6 +504,34 @@ void TEST_CASE9(void) {
   VCMP_U16(24, v1, 0x2);
 }
 
+// Back-to-back masked FP compares, mask-undisturbed (vma=0), different vd.
+// Same check as vmseq TEST_CASE14, on the FPU path (longer latency, so a
+// wider window between the first compare's last read and its writeback).
+// Each compare's inactive mask bits must come from its OWN old vd; the VFU
+// keeps the old vd of a masked compare in one register (cmp_mask_dst_q).
+// v0 = 0x55 (even elements active), all compares true (1.0 == 1.0):
+//   v1: old 0xf0 -> 0x55 | (0xf0 & 0xaa) = 0xf5
+//   v2: old 0x0f -> 0x55 | (0x0f & 0xaa) = 0x5f
+// Hazard: v1 = 0x5f (got v2's old vd).
+void TEST_CASE10(void) {
+  VSET(2, e8, m1);
+  asm volatile("vmv.v.x v0, %0" ::"r"(0x55));
+  asm volatile("vmv.v.x v1, %0" ::"r"(0xf0));
+  asm volatile("vmv.v.x v2, %0" ::"r"(0x0f));
+  {
+    unsigned int vl;
+    asm volatile("vsetvli %0, %1, e32, m2, ta, mu" : "=r"(vl) : "r"(16));
+  }
+  asm volatile("vmv.v.x v8, %0" ::"r"(0x3f800000)); // 1.0f
+  asm volatile("vmv.v.x v16, %0" ::"r"(0x3f800000));
+  // Single asm block: the two compares must issue back to back
+  asm volatile("vmfeq.vv v1, v8, v16, v0.t\n\t"
+               "vmfeq.vv v2, v8, v16, v0.t");
+  VSET(2, e8, m1);
+  VCMP_U8(25, v1, 0xf5, 0xf5);
+  VCMP_U8(26, v2, 0x5f, 0x5f);
+}
+
 int main(void) {
   INIT_CHECK();
   enable_vec();
@@ -521,6 +549,7 @@ int main(void) {
   TEST_CASE7();
   TEST_CASE8();
   TEST_CASE9();
+  TEST_CASE10();
 
   EXIT_CHECK();
 }

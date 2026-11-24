@@ -361,6 +361,167 @@ void TEST_CASE7(void) {
   #endif
 };
 
+// Mask-register tests at full LMUL=8 width. All sizes derive from VLENB
+// (read at runtime), so they run on every VLEN:
+//   mask_bytes = VLENB        (one full vector register = the mask of VLMAX
+//                              e8/m8 elements)
+//   VLMAX e8/m8 = 8 * VLENB elements
+// On VLEN=512 with 256-bit VRF words the mask spans two VRF words, and the
+// tests below cover the word-1 cases. With 256-bit VRF words, VLEN=256 has
+// just one word per register, and the same checks still have to pass.
+static unsigned int mask_bytes;
+static uint8_t *mask_buf;
+static uint8_t *mask_gold;
+
+// Fill v1 (the mask destination) with `fill` across the whole register
+#define PREFILL_V1(fill)                                                       \
+  do {                                                                         \
+    VSET(mask_bytes, e8, m1);                                                  \
+    asm volatile("vmv.v.x v1, %0" ::"r"((uint64_t)(fill)));                    \
+  } while (0)
+
+// Store v1 (whole register) into mask_buf
+#define DUMP_V1()                                                              \
+  do {                                                                         \
+    VSET(mask_bytes, e8, m1);                                                  \
+    asm volatile("vse8.v v1, (%0)" ::"r"(mask_buf) : "memory");                \
+  } while (0)
+
+// Fill the first `nbytes` of mask_gold with `val`
+static void fill_gold(uint8_t val, unsigned int nbytes) {
+  for (unsigned int i = 0; i < nbytes; i++)
+    mask_gold[i] = val;
+}
+
+// Control: vl = VLMAX/2 (256 on VLEN=512) fits in the lower half of v1
+void TEST_CASE8(void) {
+  const unsigned int vl = mask_bytes * 4;
+  PREFILL_V1(0x00);
+  VSET(vl, e8, m8);
+  asm volatile("vmv.v.i v8, 3");
+  asm volatile("vmv.v.i v16, 3");
+  asm volatile("vmseq.vv v1, v8, v16");
+  DUMP_V1();
+  fill_gold(0xff, vl / 8);
+  VMCMP(uint8_t, %hhu, 29, mask_buf, mask_gold, vl / 8);
+}
+
+// Smallest crossing of the half-register boundary: vl = VLMAX/2 + 8
+// (264 on VLEN=512 -> 33 mask bytes, byte 32 lives in VRF word 1)
+void TEST_CASE9(void) {
+  const unsigned int vl = mask_bytes * 4 + 8;
+  PREFILL_V1(0x00);
+  VSET(vl, e8, m8);
+  asm volatile("vmv.v.i v8, 3");
+  asm volatile("vmv.v.i v16, 3");
+  asm volatile("vmseq.vv v1, v8, v16");
+  DUMP_V1();
+  fill_gold(0xff, vl / 8);
+  VMCMP(uint8_t, %hhu, 30, mask_buf, mask_gold, vl / 8);
+}
+
+// Full register: vl = VLMAX, all equal -> mask_bytes of 0xff
+void TEST_CASE10(void) {
+  const unsigned int vl = mask_bytes * 8;
+  PREFILL_V1(0x00);
+  VSET(vl, e8, m8);
+  asm volatile("vmv.v.i v8, 3");
+  asm volatile("vmv.v.i v16, 3");
+  asm volatile("vmseq.vv v1, v8, v16");
+  DUMP_V1();
+  fill_gold(0xff, mask_bytes);
+  VMCMP(uint8_t, %hhu, 31, mask_buf, mask_gold, mask_bytes);
+}
+
+// Masked, mask-undisturbed (vma=0): inactive bits must keep the old vd value
+// in every VRF word, and the upper v0 bits must come from v0 (not v1).
+// v0 = 0x55.., old vd = 0xf0.., all compares true:
+//   (0x55 & 0xff) | (0xf0 & ~0x55) = 0xf5
+void TEST_CASE11(void) {
+  PREFILL_V1(0xf0);
+  VSET(mask_bytes, e8, m1);
+  asm volatile("vmv.v.x v0, %0" ::"r"((uint64_t)0x55));
+  {
+    unsigned int vl;
+    asm volatile("vsetvli %0, %1, e8, m8, ta, mu"
+                 : "=r"(vl)
+                 : "r"(mask_bytes * 8));
+  }
+  asm volatile("vmv.v.i v8, 3");
+  asm volatile("vmv.v.i v16, 3");
+  asm volatile("vmseq.vv v1, v8, v16, v0.t");
+  DUMP_V1();
+  fill_gold(0xf5, mask_bytes);
+  VMCMP(uint8_t, %hhu, 32, mask_buf, mask_gold, mask_bytes);
+}
+
+// Non-uniform data, vl = VLMAX: checks bit placement in the upper word, not
+// just that "something" got written. Element i is equal iff i % 5 == 0; that
+// pattern is not periodic in 256, so a wrong word offset gives wrong bytes.
+// Mask bytes repeat every 5: 0x21, 0x84, 0x10, 0x42, 0x08.
+void TEST_CASE12(void) {
+  const unsigned int vl = mask_bytes * 8;
+  uint8_t *a = (uint8_t *)snrt_l1alloc(vl);
+  uint8_t *b = (uint8_t *)snrt_l1alloc(vl);
+  for (unsigned int i = 0; i < vl; i++) {
+    a[i] = (uint8_t)i;
+    b[i] = (i % 5 == 0) ? a[i] : (uint8_t)(a[i] ^ 0x1);
+  }
+  static const uint8_t pattern[5] = {0x21, 0x84, 0x10, 0x42, 0x08};
+  for (unsigned int i = 0; i < mask_bytes; i++)
+    mask_gold[i] = pattern[i % 5];
+
+  PREFILL_V1(0x00);
+  VSET(vl, e8, m8);
+  asm volatile("vle8.v v8,  (%0)" ::"r"(a) : "memory");
+  asm volatile("vle8.v v16, (%0)" ::"r"(b) : "memory");
+  asm volatile("vmseq.vv v1, v8, v16");
+  DUMP_V1();
+  VMCMP(uint8_t, %hhu, 33, mask_buf, mask_gold, mask_bytes);
+}
+
+// Control at SEW=16/LMUL=8: vl = VLMAX e16/m8 = 4 * VLENB
+// (256 on VLEN=512 -> 32 mask bytes, fits in one word)
+void TEST_CASE13(void) {
+  const unsigned int vl = mask_bytes * 4;
+  PREFILL_V1(0x00);
+  VSET(vl, e16, m8);
+  asm volatile("vmv.v.i v8, 3");
+  asm volatile("vmv.v.i v16, 3");
+  asm volatile("vmseq.vv v1, v8, v16");
+  DUMP_V1();
+  fill_gold(0xff, vl / 8);
+  VMCMP(uint8_t, %hhu, 34, mask_buf, mask_gold, vl / 8);
+}
+
+// Back-to-back masked compares, mask-undisturbed (vma=0), different vd.
+// Each compare's inactive mask bits must come from its OWN old vd. The VFU
+// keeps the old vd of a masked compare in one register (cmp_mask_dst_q); if
+// the second compare reads its vd before the first one has written back, the
+// first one merges the second one's old vd.
+// v0 = 0x55 (even elements active), all compares true:
+//   v1: old 0xf0 -> 0x55 | (0xf0 & 0xaa) = 0xf5
+//   v2: old 0x0f -> 0x55 | (0x0f & 0xaa) = 0x5f
+// Hazard: v1 = 0x5f (got v2's old vd).
+void TEST_CASE14(void) {
+  VSET(2, e8, m1);
+  asm volatile("vmv.v.x v0, %0" ::"r"(0x55));
+  asm volatile("vmv.v.x v1, %0" ::"r"(0xf0));
+  asm volatile("vmv.v.x v2, %0" ::"r"(0x0f));
+  {
+    unsigned int vl;
+    asm volatile("vsetvli %0, %1, e32, m2, ta, mu" : "=r"(vl) : "r"(16));
+  }
+  asm volatile("vmv.v.i v8, 3");
+  asm volatile("vmv.v.i v16, 3");
+  // Single asm block: the two compares must issue back to back
+  asm volatile("vmseq.vv v1, v8, v16, v0.t\n\t"
+               "vmseq.vv v2, v8, v16, v0.t");
+  VSET(2, e8, m1);
+  VCMP_U8(35, v1, 0xf5, 0xf5);
+  VCMP_U8(36, v2, 0x5f, 0x5f);
+}
+
 int main(void) {
   INIT_CHECK();
   enable_vec();
@@ -372,6 +533,17 @@ int main(void) {
   TEST_CASE5();
   TEST_CASE6();
   TEST_CASE7();
+
+  asm volatile("csrr %0, vlenb" : "=r"(mask_bytes));
+  mask_buf = (uint8_t *)snrt_l1alloc(mask_bytes);
+  mask_gold = (uint8_t *)snrt_l1alloc(mask_bytes);
+  TEST_CASE8();
+  TEST_CASE9();
+  TEST_CASE10();
+  TEST_CASE11();
+  TEST_CASE12();
+  TEST_CASE13();
+  TEST_CASE14();
 
   EXIT_CHECK();
 }

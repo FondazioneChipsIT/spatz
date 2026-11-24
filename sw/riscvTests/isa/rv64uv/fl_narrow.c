@@ -95,6 +95,67 @@ void TEST_CASE5(void) {
 }
 #endif
 
+// fmv.{w,h,b}.x must NaN-box like the narrow loads: the integer value goes to
+// the low bits and every FPR bit above it is set to 1.
+
+// fmv.w.x must NaN-box FPR bits [63:32]; fsd exposes them (RVD only)
+#if ELEN == 64
+void TEST_CASE6(void) {
+  volatile uint32_t dst[2] __attribute__((aligned(8)));
+  dst[0] = 0;
+  dst[1] = 0;
+  asm volatile("fmv.w.x fa0, %[src]\n"
+               "fsd fa0, 0(%[dst])\n"
+               "fence\n"
+               :
+               : [src] "r"(0x3F800000), [dst] "r"(dst)
+               : "fa0", "memory");
+  XCMP(11, dst[0], (uint32_t)0x3F800000);
+  XCMP(12, dst[1], (uint32_t)0xFFFFFFFF);
+}
+#endif
+
+// fmv.h.x must take only rs1[15:0] and NaN-box [FLEN-1:16]; fmv.x.w exposes
+// [31:16]. The junk in rs1[31:16] must not leak into the FPR.
+void TEST_CASE7(void) {
+  uint32_t out;
+  asm volatile("fmv.h.x fa0, %[src]\n"
+               "fmv.x.w %[out], fa0\n"
+               : [out] "=r"(out)
+               : [src] "r"(0x12343C00)
+               : "fa0");
+  XCMP(13, out, (uint32_t)0xFFFF3C00);
+}
+
+// fmv.b.x must take only rs1[7:0] and NaN-box [FLEN-1:8]; fmv.x.w exposes
+// [31:8]. The junk in rs1[31:8] must not leak into the FPR.
+void TEST_CASE8(void) {
+  uint32_t out;
+  asm volatile("fmv.b.x fa0, %[src]\n"
+               "fmv.x.w %[out], fa0\n"
+               : [out] "=r"(out)
+               : [src] "r"(0x1234563C)
+               : "fa0");
+  XCMP(14, out, (uint32_t)0xFFFFFF3C);
+}
+
+// fmv.h.x upper bits [63:32] must also be boxed; fsd exposes them (RVD only)
+#if ELEN == 64
+void TEST_CASE9(void) {
+  volatile uint32_t dst[2] __attribute__((aligned(8)));
+  dst[0] = 0;
+  dst[1] = 0;
+  asm volatile("fmv.h.x fa0, %[src]\n"
+               "fsd fa0, 0(%[dst])\n"
+               "fence\n"
+               :
+               : [src] "r"(0x00003C00), [dst] "r"(dst)
+               : "fa0", "memory");
+  XCMP(15, dst[0], (uint32_t)0xFFFF3C00);
+  XCMP(16, dst[1], (uint32_t)0xFFFFFFFF);
+}
+#endif
+
 int main(void) {
   INIT_CHECK();
   enable_vec();
@@ -108,6 +169,16 @@ int main(void) {
   TEST_CASE4();
 #if ELEN == 64
   TEST_CASE5();
+#endif
+
+  // fmv.{w,h,b}.x NaN-boxing
+#if ELEN == 64
+  TEST_CASE6();
+#endif
+  TEST_CASE7();
+  TEST_CASE8();
+#if ELEN == 64
+  TEST_CASE9();
 #endif
 
   EXIT_CHECK();

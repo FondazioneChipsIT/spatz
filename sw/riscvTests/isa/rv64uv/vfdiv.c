@@ -397,6 +397,77 @@ void TEST_CASE6(void) {
            0xc18efd46, 0x0, 0x3f88d884, 0x0, 0x3ed125d4, 0x0, 0x0, 0x0, 0x0);
 };
 
+// D20 (divsqrt_is_shared = 1): the retire check uses FPU0's tag_o without
+// out_valid. When no opgroup has a valid result, fpnew's output rr_arb_tree
+// passes through its highest-index input, the CONV opgroup. CONV's pipeline
+// registers keep the tag of the last conversion. A vector vfcvt leaves a tag
+// with last = 1 there. The vfdiv that follows has vl = 2 (a single slot), so
+// last_divsqrt is true from its first cycle. It then sees result_tag.last = 1
+// and retires before its result is written. Expected without the fix: hang
+// (no vfu_rsp for the vfdiv) or a TC 17 mismatch (v4 still zero).
+// The vadd in between runs on the IPU: switching the VFU state from FPU to IPU
+// waits until the FPUs are empty, so the vfcvt has fully drained (only its tag
+// is left in CONV) before the vfdiv starts. This keeps the test on D20 only.
+void TEST_CASE7(void) {
+  VSET(16, e32, m8);
+  VLOAD_32(v16, 0x3f25fcc8, 0x3bda73da, 0xbe0b77ce, 0x3e5801fb, 0xbf02a9f0,
+           0xbf45acab, 0x3ed79c3e, 0x3f5469f3, 0xbe9fe1ea, 0x3f3044a4,
+           0xbf3acda8, 0x3dde1212, 0xbec4d327, 0x3e395d84, 0x3f128ebd,
+           0x3f43c09b);
+  VLOAD_32(v24, 0xbf18a69c, 0xbef01468, 0x3f7f2303, 0xbefcea5d, 0x3f4e9899,
+           0x3f0ed079, 0xbe87cde5, 0xbd3e2597, 0xbf2d3d68, 0x3f24dfc3,
+           0x3d8809bb, 0x3e87e8ab, 0xbb13c97d, 0x3e8cb036, 0x3f43dcf9,
+           0x3eb95064);
+
+  VSET(2, e32, m1);
+  VLOAD_32(v6, 1, 2);
+  VCLEAR(v4);
+  VCLEAR(v7);
+
+  VCLEAR(v9);
+
+  // Conversion (leaves CONV tag.last = 1), IPU op to drain the FPUs, then an
+  // independent single-slot vfdiv
+  asm volatile("vfcvt.f.x.v v7, v6     \n"
+               "vadd.vv     v9, v6, v6 \n"
+               "vfdiv.vv    v4, v16, v24\n");
+
+  VCMP_U32(17, v4, 0xbf8b2ed5, 0xbc68f04d);
+  VCMP_U32(18, v7, 0x3f800000, 0x40000000);
+  VCMP_U32(19, v9, 2, 4);
+};
+
+// Shared div/sqrt entered while older FPU results are still in flight.
+// divsqrt_shared_active is decoded from the *current* spatz_req.op. As soon as
+// the vfdiv becomes spatz_req, FPU0's out_ready switches to
+// divsqrt_shared_ready and the result mux only shows the accumulator + FPU0.
+// If the vfcvt's results are still in the FPUs at that point, FPU0's
+// conversion result is treated as a div slot and the vfcvt's word on
+// FPUs 1..N-1 can never complete. Expected without the fix: hang.
+void TEST_CASE8(void) {
+  VSET(16, e32, m8);
+  VLOAD_32(v16, 0x3f25fcc8, 0x3bda73da, 0xbe0b77ce, 0x3e5801fb, 0xbf02a9f0,
+           0xbf45acab, 0x3ed79c3e, 0x3f5469f3, 0xbe9fe1ea, 0x3f3044a4,
+           0xbf3acda8, 0x3dde1212, 0xbec4d327, 0x3e395d84, 0x3f128ebd,
+           0x3f43c09b);
+  VLOAD_32(v24, 0xbf18a69c, 0xbef01468, 0x3f7f2303, 0xbefcea5d, 0x3f4e9899,
+           0x3f0ed079, 0xbe87cde5, 0xbd3e2597, 0xbf2d3d68, 0x3f24dfc3,
+           0x3d8809bb, 0x3e87e8ab, 0xbb13c97d, 0x3e8cb036, 0x3f43dcf9,
+           0x3eb95064);
+
+  VSET(2, e32, m1);
+  VLOAD_32(v6, 1, 2);
+  VCLEAR(v4);
+  VCLEAR(v7);
+
+  // Back-to-back FPU ops: no IPU op in between, so nothing drains the FPUs
+  asm volatile("vfcvt.f.x.v v7, v6     \n"
+               "vfdiv.vv    v4, v16, v24\n");
+
+  VCMP_U32(20, v4, 0xbf8b2ed5, 0xbc68f04d);
+  VCMP_U32(21, v7, 0x3f800000, 0x40000000);
+};
+
 int main(void) {
   INIT_CHECK();
   enable_vec();
@@ -409,6 +480,8 @@ int main(void) {
   TEST_CASE4();
   TEST_CASE5();
   TEST_CASE6();
+  TEST_CASE7();
+  TEST_CASE8();
 
   EXIT_CHECK();
 }

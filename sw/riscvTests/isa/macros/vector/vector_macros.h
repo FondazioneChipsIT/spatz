@@ -12,6 +12,11 @@
 #include <stdint.h>
 #include <string.h>
 
+// Locals declared inside the macros below use a macro-specific prefix and a
+// trailing underscore (vset_vl_, vcmp_i_, vload_len_, ...). A plain name like
+// `vl` or `i` would shadow a caller variable passed as a macro argument: e.g.
+// VSET(vl, ...) used to read the macro's own uninitialized `vl`.
+
 #ifdef __SPIKE__
 #include <stdio.h>
 
@@ -152,52 +157,52 @@ int test_case;
 
 #define FCMP32(casenum, act, exp_bits)                                         \
 do {                                                                           \
-    uint32_t bits;                                                             \
-    memcpy(&bits, &(act), sizeof(bits));                                       \
-    if (bits != (uint32_t)(exp_bits)) {                                        \
+    uint32_t fcmp_bits_;                                                       \
+    memcpy(&fcmp_bits_, &(act), sizeof(fcmp_bits_));                           \
+    if (fcmp_bits_ != (uint32_t)(exp_bits)) {                                  \
         printf("[TC %d] FAILED. Got 0x%08x, expected 0x%08x\n",                \
-               casenum, bits, (uint32_t)(exp_bits));                           \
+               casenum, fcmp_bits_, (uint32_t)(exp_bits));                     \
         num_failed++;                                                          \
         return;                                                                \
     }                                                                          \
-    printf("[TC %d] PASSED.\n", casenum);                                                       \
+    printf("[TC %d] PASSED.\n", casenum);                                      \
 } while (0)
 
 #define FCMP64(casenum, act, exp_bits)                                         \
 do {                                                                           \
-    uint64_t bits;                                                             \
-    memcpy(&bits, &(act), sizeof(bits));                                       \
-    if (bits != (uint64_t)(exp_bits)) {                                        \
+    uint64_t fcmp_bits_;                                                       \
+    memcpy(&fcmp_bits_, &(act), sizeof(fcmp_bits_));                           \
+    if (fcmp_bits_ != (uint64_t)(exp_bits)) {                                  \
         printf("[TC %d] FAILED. Got 0x%016lx, expected 0x%016lx\n",            \
-               casenum, bits, (uint64_t)(exp_bits));                           \
+               casenum, fcmp_bits_, (uint64_t)(exp_bits));                     \
         num_failed++;                                                          \
         return;                                                                \
     }                                                                          \
-    printf("[TC %d] PASSED.\n", casenum);                                                       \
+    printf("[TC %d] PASSED.\n", casenum);                                      \
 } while (0)
 
 // Check the results against a vector of golden values
 #define VCMP(T, str, casenum, vexp, act...)                                    \
   do {                                                                         \
-    const T vact[] = {act};                                                    \
-    for (unsigned int i = 0; i < sizeof(vact) / sizeof(T); i++) {              \
-      if (vexp[i] != vact[i]) {                                                \
+    const T vcmp_act_[] = {act};                                               \
+    for (unsigned int vcmp_i_ = 0; vcmp_i_ < sizeof(vcmp_act_) / sizeof(T); vcmp_i_++) { \
+      if (vexp[vcmp_i_] != vcmp_act_[vcmp_i_]) {                               \
         printf("[TC %d] Index %d FAILED. Got " #str ", expected " #str ".\n",  \
-               casenum, i, vexp[i], vact[i]);                                  \
+               casenum, vcmp_i_, vexp[vcmp_i_], vcmp_act_[vcmp_i_]);           \
         num_failed++;                                                          \
         return;                                                                \
       }                                                                        \
     }                                                                          \
-    printf("[TC %d] PASSED.\n", casenum);                                                       \
+    printf("[TC %d] PASSED.\n", casenum);                                      \
   } while (0)
 
 // Check the results against an in-memory vector of golden values
 #define VMCMP(T, str, casenum, vexp, vgold, size)                              \
   do {                                                                         \
-    for (unsigned int i = 0; i < size; i++) {                                  \
-      if (vexp[i] != vgold[i]) {                                               \
+    for (unsigned int vmcmp_i_ = 0; vmcmp_i_ < size; vmcmp_i_++) {             \
+      if (vexp[vmcmp_i_] != vgold[vmcmp_i_]) {                                 \
         printf("[TC %d] Index %d FAILED. Got " #str ", expected " #str ".\n",  \
-               casenum, i, vexp[i], vgold[i]);                                 \
+               casenum, vmcmp_i_, vexp[vmcmp_i_], vgold[vmcmp_i_]);            \
         num_failed++;                                                          \
         return;                                                                \
       }                                                                        \
@@ -208,19 +213,19 @@ do {                                                                           \
 // Macros to set vector length, type and multiplier
 #define VSET(VLEN, VTYPE, LMUL)                                                \
   do {                                                                         \
-    unsigned int vl;                                                           \
+    unsigned int vset_vl_;                                                     \
     asm volatile("vsetvli %[vl], %[A]," #VTYPE "," #LMUL ", ta, ma \n"         \
-                 : [vl] "+r"(vl)                                               \
+                 : [vl] "=r"(vset_vl_)                                         \
                  : [A] "r"(VLEN));                                             \
   } while (0)
 
 #define VSETMAX(VTYPE, LMUL)                                                   \
   do {                                                                         \
-    unsigned int vl;                                                           \
-    int64_t scalar = -1;                                                       \
+    unsigned int vset_vl_;                                                     \
+    int64_t vset_avl_ = -1;                                                    \
     asm volatile("vsetvli %[vl], %[A]," #VTYPE "," #LMUL ", ta, ma \n"         \
-                 : [vl] "+r"(vl)                                               \
-                 : [A] "r"(scalar));                                           \
+                 : [vl] "=r"(vset_vl_)                                         \
+                 : [A] "r"(vset_avl_));                                        \
   } while (0)
 
 // Macro to load a vector register with data from the stack
@@ -229,11 +234,11 @@ do {                                                                           \
 // buffer looks dead — the asm only consumes the pointer value).
 #define VLOAD(datatype, loadtype, vreg, vec...)                                \
   do {                                                                         \
-    datatype tmpV##vreg[] = {vec};                                             \
-    size_t len = sizeof(tmpV##vreg) / sizeof(datatype);                        \
-    datatype *V##vreg = (datatype *)snrt_l1alloc(len * sizeof(datatype));      \
-    memcpy(V##vreg, tmpV##vreg, len * sizeof(datatype));                       \
-    asm volatile("vl" #loadtype ".v " #vreg ", (%0)  \n" ::[V] "r"(V##vreg)    \
+    datatype vload_tmp_##vreg[] = {vec};                                       \
+    size_t vload_len_ = sizeof(vload_tmp_##vreg) / sizeof(datatype);           \
+    datatype *vload_buf_##vreg = (datatype *)snrt_l1alloc(vload_len_ * sizeof(datatype)); \
+    memcpy(vload_buf_##vreg, vload_tmp_##vreg, vload_len_ * sizeof(datatype)); \
+    asm volatile("vl" #loadtype ".v " #vreg ", (%0)  \n" ::[V] "r"(vload_buf_##vreg) \
                  : "memory");                                                  \
   } while (0)
 
@@ -248,34 +253,34 @@ do {                                                                           \
 // Macro to reset the whole register back to zero
 #define VCLEAR(register)                                                       \
   do {                                                                         \
-    uint64_t vtype;                                                            \
-    uint64_t vl;                                                               \
-    uint64_t vlmax;                                                            \
-    asm volatile("csrr %[vtype], vtype" : [vtype] "=r"(vtype));                \
-    asm volatile("csrr %[vl], vl" : [vl] "=r"(vl));                            \
-    asm volatile("vsetvl %[vlmax], zero, %[vtype]"                             \
-                 : [vlmax] "=r"(vlmax)                                         \
-                 : [vtype] "r"(vtype));                                        \
+    uint64_t vclr_vtype_;                                                      \
+    uint64_t vclr_vl_;                                                         \
+    uint64_t vclr_vlmax_;                                                      \
+    asm volatile("csrr %[VT], vtype" : [VT] "=r"(vclr_vtype_));                \
+    asm volatile("csrr %[VL], vl" : [VL] "=r"(vclr_vl_));                      \
+    asm volatile("vsetvl %[VM], zero, %[VT]"                                   \
+                 : [VM] "=r"(vclr_vlmax_)                                      \
+                 : [VT] "r"(vclr_vtype_));                                     \
     asm volatile("vmv.v.i " #register ", 0");                                  \
     asm volatile(                                                              \
-        "vsetvl zero, %[vl], %[vtype]" ::[vl] "r"(vl), [vtype] "r"(vtype));    \
+        "vsetvl zero, %[VL], %[VT]" ::[VL] "r"(vclr_vl_), [VT] "r"(vclr_vtype_)); \
   } while (0)
 
-#define VSET_TO_ONES(register)                                                                   \
-  do {                                                                                            \
-    uint64_t vtype; uint64_t vl; uint64_t vlmax;                                                  \
-    asm volatile("csrr %[vtype], vtype" : [vtype] "=r" (vtype));                                  \
-    asm volatile("csrr %[vl], vl" : [vl] "=r" (vl));                                              \
-    asm volatile("vsetvl %[vlmax], zero, %[vtype]" : [vlmax] "=r" (vlmax) : [vtype] "r" (vtype)); \
-    asm volatile("vmv.v.i "#register", -1");                                                      \
-    asm volatile("vsetvl zero, %[vl], %[vtype]" :: [vl] "r" (vl), [vtype] "r" (vtype));           \
+#define VSET_TO_ONES(register)                                                 \
+  do {                                                                         \
+    uint64_t vclr_vtype_; uint64_t vclr_vl_; uint64_t vclr_vlmax_;             \
+    asm volatile("csrr %[VT], vtype" : [VT] "=r" (vclr_vtype_));               \
+    asm volatile("csrr %[VL], vl" : [VL] "=r" (vclr_vl_));                     \
+    asm volatile("vsetvl %[VM], zero, %[VT]" : [VM] "=r" (vclr_vlmax_) : [VT] "r" (vclr_vtype_)); \
+    asm volatile("vmv.v.i "#register", -1");                                   \
+    asm volatile("vsetvl zero, %[VL], %[VT]" :: [VL] "r" (vclr_vl_), [VT] "r" (vclr_vtype_)); \
   } while(0)
 
 // Macro to initialize a vector with progressive values from a counter
 #define INIT_MEM_CNT(vec_name, size)                                           \
   counter = 0;                                                                 \
-  for (int i = 0; i < size; i++) {                                             \
-    vec_name[i] = counter;                                                     \
+  for (int init_i_ = 0; init_i_ < size; init_i_++) {                           \
+    vec_name[init_i_] = counter;                                               \
     counter++;                                                                 \
   }
 
@@ -283,8 +288,8 @@ do {                                                                           \
 // The vector is initialized on the stack, use this function with caution
 // Easy to go in the UART address space
 #define INIT_MEM_ZEROES(vec_name, size)                                        \
-  for (int i = 0; i < size; i++) {                                             \
-    vec_name[i] = 0;                                                           \
+  for (int init_i_ = 0; init_i_ < size; init_i_++) {                           \
+    vec_name[init_i_] = 0;                                                     \
   }
 
 /***************************

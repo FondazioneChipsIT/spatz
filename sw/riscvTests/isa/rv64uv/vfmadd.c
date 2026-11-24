@@ -428,6 +428,19 @@ void TEST_CASE4(void) {
 #endif
 };
 
+// Scalar fmadd.s: the static rm in instr[14:12] overrides frm.
+// fmadd.s rup with frm = RDN: 1.0*1.0 + 0.75ulp -> 1.0+ulp (RDN -> 1.0)
+void TEST_CASE5(void) {
+  float a, b, r;
+  BOX_FLOAT_IN_FLOAT(a, 0x3F800000); // 1.0
+  BOX_FLOAT_IN_FLOAT(b, 0x33C00000); // 1.5 * 2^-24 = 0.75 ulp of 1.0
+  CHANGE_RM(RM_RDN);
+  asm volatile("fmadd.s %0, %1, %2, %3, rup"
+               : "=f"(r)
+               : "f"(a), "f"(a), "f"(b));
+  FCMP32(13, r, 0x3F800001);
+}
+
 int main(void) {
   INIT_CHECK();
   enable_vec();
@@ -437,6 +450,10 @@ int main(void) {
   TEST_CASE2();
   TEST_CASE3();
   TEST_CASE4();
+
+  // Scalar static-rm case changes frm: run it last and restore RNE
+  TEST_CASE5();
+  CHANGE_RM(RM_RNE);
 
   EXIT_CHECK();
 }

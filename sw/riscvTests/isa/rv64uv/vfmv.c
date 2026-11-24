@@ -115,6 +115,38 @@ void TEST_CASE3(void) {
 #endif
 };
 
+// vfmv.s.f when vstart >= vl (RVV 1.0): no operation is performed and vd is not
+// updated. Element 0 is a prestart element as soon as vstart >= 1, and with
+// vl = 0 there is nothing to write either.
+void TEST_CASE4(void) {
+  float fscalar_32;
+  //                             -0.96056187
+  BOX_FLOAT_IN_FLOAT(fscalar_32, 0xbf75e762);
+
+  // vstart = 1, vl = 4: v8 unchanged
+  VSET(4, e32, m1);
+  VLOAD_32(v8, 1, 2, 3, 4);
+  asm volatile("csrw vstart, 1");
+  asm volatile("vfmv.s.f v8, %[A]" ::[A] "f"(fscalar_32));
+  asm volatile("csrw vstart, 0");
+  VCMP_U32(9, v8, 1, 2, 3, 4);
+
+  // vl = 0: v8 unchanged
+  VSET(4, e32, m1);
+  VLOAD_32(v8, 1, 2, 3, 4);
+  VSET(0, e32, m1);
+  asm volatile("vfmv.s.f v8, %[A]" ::[A] "f"(fscalar_32));
+  VSET(4, e32, m1);
+  VCMP_U32(10, v8, 1, 2, 3, 4);
+
+  // Control: vstart = 0, vl = 4 -> element 0 written
+  VSET(4, e32, m1);
+  VLOAD_32(v8, 1, 2, 3, 4);
+  asm volatile("vfmv.s.f v8, %[A]" ::[A] "f"(fscalar_32));
+  VSET(1, e32, m1);
+  VCMP_U32(11, v8, 0xbf75e762);
+}
+
 int main(void) {
   INIT_CHECK();
   enable_vec();
@@ -123,6 +155,7 @@ int main(void) {
   TEST_CASE1();
   TEST_CASE2();
   TEST_CASE3();
+  TEST_CASE4();
 
   EXIT_CHECK();
 }

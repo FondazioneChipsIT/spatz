@@ -203,6 +203,49 @@ void TEST_CASE6(void) {
 #endif
 }
 
+// Masked reduction at e8/m8 with vl = VLMAX (= VLEN elements): the mask for
+// the upper elements must come from the upper part of v0.
+// Regression for:
+//   - Reduction_Read_V0_t reading v1 word 0 instead of v0 word 1
+//   - v0 read as only 2 VRF words: on configs with 128-bit VRF words
+//     (ELEN=32, e.g. the 32b cluster config) v0 is 4 words and bits >= 256
+//     were never read
+// Sizes derive from VLENB (read at runtime); B = VLENB = bytes of v0:
+// v0 bytes [0,    B/2)  = 0x00 -> lower half of the elements inactive
+// v0 bytes [B/2,  3B/4) = 0x01 -> 1 active element per byte  (B/4 total)
+// v0 bytes [3B/4, B)    = 0x03 -> 2 active elements per byte (B/2 total)
+// v1 = 0x0f (decoy: a DUT reading v1 as the upper v0 word gets a wrong sum)
+// v16 = 1 everywhere, v8[0] = 0 -> correct sum = 3B/4 (48 on VLEN=512)
+void TEST_CASE7(void) {
+  unsigned int vlenb;
+  asm volatile("csrr %0, vlenb" : "=r"(vlenb));
+  const unsigned int vlmax = vlenb * 8; // e8/m8
+
+  // Control: unmasked, vl = VLMAX/2 + 44 (300 on VLEN=512) -> sum mod 256
+  const unsigned int vl_ctrl = vlmax / 2 + 44;
+  VSET(vl_ctrl, e8, m8);
+  asm volatile("vmv.v.i v16, 1");
+  asm volatile("vmv.v.i v8, 0");
+  asm volatile("vmv.v.i v24, 0");
+  asm volatile("vredsum.vs v24, v16, v8");
+  VSET(1, e8, m1);
+  VCMP_U8(23, v24, (uint8_t)vl_ctrl);
+
+  uint8_t *mask = (uint8_t *)snrt_l1alloc(vlenb);
+  for (unsigned int i = 0; i < vlenb; i++)
+    mask[i] = (i < vlenb / 2) ? 0x00 : (i < 3 * vlenb / 4) ? 0x01 : 0x03;
+  VSET(vlenb, e8, m1);
+  asm volatile("vle8.v v0, (%0)" ::"r"(mask) : "memory");
+  asm volatile("vmv.v.i v1, 15");
+  VSET(vlmax, e8, m8);
+  asm volatile("vmv.v.i v16, 1");
+  asm volatile("vmv.v.i v8, 0");
+  asm volatile("vmv.v.i v24, 0");
+  asm volatile("vredsum.vs v24, v16, v8, v0.t");
+  VSET(1, e8, m1);
+  VCMP_U8(24, v24, (uint8_t)(3 * vlenb / 4));
+}
+
 int main(void) {
   INIT_CHECK();
   enable_vec();
@@ -213,6 +256,7 @@ int main(void) {
   TEST_CASE4();
   TEST_CASE5();
   TEST_CASE6();
+  TEST_CASE7();
 
   EXIT_CHECK();
 }
