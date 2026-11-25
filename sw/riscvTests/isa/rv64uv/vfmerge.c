@@ -51,7 +51,10 @@ void TEST_CASE1(void) {
            0x3f46050b, 0xbf75e762, 0xbe80fb14, 0xbf75e762, 0x3f4dd62f,
            0xbf75e762);
 
-  VSET(16, e64, m2);
+#if ELEN == 64
+  // m4 (not m2) so that vl = 16 also fits a 256-bit VRF (VLMAX = 4 * 256 / 64).
+  // The destination moves to v8: an m4 group must start at a multiple of 4.
+  VSET(16, e64, m4);
   //               -0.3488917150781869, -0.4501495513738740, 0.8731197104152684,
   //               0.3256432550932964,  0.6502591178769535, -0.3169358689246526,
   //               -0.5396694979141685, -0.5417807430937591,
@@ -68,7 +71,7 @@ void TEST_CASE1(void) {
   //                               0.9108707261227378
   BOX_DOUBLE_IN_DOUBLE(dscalar_64, 0x3fed25da5d7296fe);
   VLOAD_8(v0, 0x0F, 0xAA);
-  asm volatile("vfmerge.vfm v2, v4, %[A], v0" ::[A] "f"(dscalar_64));
+  asm volatile("vfmerge.vfm v8, v4, %[A], v0" ::[A] "f"(dscalar_64));
   //                0.9108707261227378,  0.9108707261227378, 0.9108707261227378,
   //                0.9108707261227378,  0.6502591178769535,
   //                -0.3169358689246526, -0.5396694979141685,
@@ -76,12 +79,13 @@ void TEST_CASE1(void) {
   //                0.9108707261227378,  0.3564275916066595, 0.9108707261227378,
   //                0.6580947137446858,  0.9108707261227378, 0.1761214464164236,
   //                0.9108707261227378
-  VCMP_U64(3, v2, 0x3fed25da5d7296fe, 0x3fed25da5d7296fe, 0x3fed25da5d7296fe,
+  VCMP_U64(3, v8, 0x3fed25da5d7296fe, 0x3fed25da5d7296fe, 0x3fed25da5d7296fe,
            0x3fed25da5d7296fe, 0x3fe4ceec35a6a266, 0xbfd448ad61fd7c88,
            0xbfe144f8f7861540, 0xbfe1564491a616b8, 0xbfe9825047ca1cd6,
            0x3fed25da5d7296fe, 0x3fd6cfb5ac55edec, 0x3fed25da5d7296fe,
            0x3fe50f1ca5268668, 0x3fed25da5d7296fe, 0x3fc68b25c63dcaf0,
            0x3fed25da5d7296fe);
+#endif
 };
 
 // Same data as TEST_CASE1 at e16, in its own function so a failure at one SEW
@@ -129,14 +133,15 @@ void TEST_CASE3(void) {
 // (active or not) must be overwritten with either the scalar or vs2.
 void TEST_CASE4(void) {
 #if ELEN == 64
-  VSET(16, e64, m2);
+  // m4 with vd = v8, for the same reason as the e64 part of TEST_CASE1.
+  VSET(16, e64, m4);
   VLOAD_64(v4, 0xbfd6543dea86cb60, 0xbfdccf40105d6e5c, 0x3febf098bf37400c,
            0x3fd4d756ceb279f4, 0x3fe4ceec35a6a266, 0xbfd448ad61fd7c88,
            0xbfe144f8f7861540, 0xbfe1564491a616b8, 0xbfe9825047ca1cd6,
            0xbfc696e097352100, 0x3fd6cfb5ac55edec, 0xbfd8074a7158dd78,
            0x3fe50f1ca5268668, 0xbfd54dffe23d0eec, 0x3fc68b25c63dcaf0,
            0x3fc24d1575fbd080);
-  VLOAD_64(v2, 0xdeadbeefdeadbeef, 0xdeadbeefdeadbeef, 0xdeadbeefdeadbeef,
+  VLOAD_64(v8, 0xdeadbeefdeadbeef, 0xdeadbeefdeadbeef, 0xdeadbeefdeadbeef,
            0xdeadbeefdeadbeef, 0xdeadbeefdeadbeef, 0xdeadbeefdeadbeef,
            0xdeadbeefdeadbeef, 0xdeadbeefdeadbeef, 0xdeadbeefdeadbeef,
            0xdeadbeefdeadbeef, 0xdeadbeefdeadbeef, 0xdeadbeefdeadbeef,
@@ -145,8 +150,8 @@ void TEST_CASE4(void) {
   VLOAD_8(v0, 0x0F, 0xAA);
   double fs;
   BOX_DOUBLE_IN_DOUBLE(fs, 0x3fed25da5d7296fe);
-  asm volatile("vfmerge.vfm v2, v4, %[A], v0" ::[A] "f"(fs));
-  VCMP_U64(6, v2, 0x3fed25da5d7296fe, 0x3fed25da5d7296fe, 0x3fed25da5d7296fe,
+  asm volatile("vfmerge.vfm v8, v4, %[A], v0" ::[A] "f"(fs));
+  VCMP_U64(6, v8, 0x3fed25da5d7296fe, 0x3fed25da5d7296fe, 0x3fed25da5d7296fe,
             0x3fed25da5d7296fe, 0x3fe4ceec35a6a266, 0xbfd448ad61fd7c88,
             0xbfe144f8f7861540, 0xbfe1564491a616b8, 0xbfe9825047ca1cd6,
             0x3fed25da5d7296fe, 0x3fd6cfb5ac55edec, 0x3fed25da5d7296fe,
