@@ -3,6 +3,23 @@
 // SPDX-License-Identifier: SHL-0.51
 
 #include "vector_macros.h"
+#define V8_GROUP "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15"
+
+// Snapshot vl/vtype before the FF load ...
+#define FF_SNAPSHOT                                                            \
+  unsigned long ff_vl0, ff_vtype0, ff_vl1, ff_vtype1;                          \
+  read_vl(ff_vl0) read_vtype(ff_vtype0)
+
+// ... and check that the FF load did not modify them
+#define FF_CHECK_VL(casenum)                                                   \
+  read_vl(ff_vl1) read_vtype(ff_vtype1)                                        \
+  check_vtype_vl(casenum, ff_vtype1, ff_vtype0, ff_vl1, ff_vl0)
+
+static inline uint32_t get_vlenb(void) {
+  uint32_t vlenb;
+  asm volatile("csrr %0, vlenb" : "=r"(vlenb));
+  return vlenb;
+}
 
 //**********Checking functionality of vle16 ********//
 void TEST_CASE1(void) {
@@ -149,6 +166,123 @@ void TEST_CASE7(void) {
   );
 }
 
+//*******Checking that vle16 leaves the tail (elements >= vl) undisturbed******//
+// The destination is filled with a sentinel (0xbeef) over a 16-element
+// window, then a different pattern (0x5a5a) is loaded into another register so
+// that any stale data left inside the VLSU is recognizable. The partial load
+// runs with tu/mu and vl ending in the middle of a 64-bit word: elements
+// [vl, 16) must still hold 0xbeef afterwards.
+//   0xbeef -> correct (tail untouched)
+//   0x5a5a -> tail written with stale VLSU data
+//   INP1[] -> tail written with memory data past vl
+
+// vl = 1: tail starts at byte 2 of the first word
+void TEST_CASE8(void) {
+  volatile uint16_t INP1[] = {0xFF00, 0xFF9f, 0xFFe4, 0xFF19, 0xFF20, 0xFF8f, 0xFF2e, 0xFF05,
+                              0xFFe0, 0xFFf9, 0xFFaa, 0xFF71, 0xFFf0, 0xFFc3, 0xFF94, 0xFFbb};
+  VSET(16, e16, m1);
+  VLOAD_16(v1, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef,
+               0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef);
+  VLOAD_16(v2, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a,
+               0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a);
+
+  VSET_TU(1, e16, m1);
+  asm volatile("vle16.v v1, (%0)" ::"r"(INP1) : "memory");
+
+  VSET(16, e16, m1);
+  VCMP_U16(8, v1, 0xFF00, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef,
+                  0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef);
+}
+
+// vl = 5: tail starts at byte 2 of the second word
+void TEST_CASE9(void) {
+  volatile uint16_t INP1[] = {0xFF00, 0xFF9f, 0xFFe4, 0xFF19, 0xFF20, 0xFF8f, 0xFF2e, 0xFF05,
+                              0xFFe0, 0xFFf9, 0xFFaa, 0xFF71, 0xFFf0, 0xFFc3, 0xFF94, 0xFFbb};
+  VSET(16, e16, m1);
+  VLOAD_16(v1, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef,
+               0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef);
+  VLOAD_16(v2, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a,
+               0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a);
+
+  VSET_TU(5, e16, m1);
+  asm volatile("vle16.v v1, (%0)" ::"r"(INP1) : "memory");
+
+  VSET(16, e16, m1);
+  VCMP_U16(9, v1, 0xFF00, 0xFF9f, 0xFFe4, 0xFF19, 0xFF20, 0xbeef, 0xbeef, 0xbeef,
+                  0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef);
+}
+
+// vl = 11: tail starts at byte 6 of the third word
+void TEST_CASE10(void) {
+  volatile uint16_t INP1[] = {0xFF00, 0xFF9f, 0xFFe4, 0xFF19, 0xFF20, 0xFF8f, 0xFF2e, 0xFF05,
+                              0xFFe0, 0xFFf9, 0xFFaa, 0xFF71, 0xFFf0, 0xFFc3, 0xFF94, 0xFFbb};
+  VSET(16, e16, m1);
+  VLOAD_16(v1, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef,
+               0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef);
+  VLOAD_16(v2, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a,
+               0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a);
+
+  VSET_TU(11, e16, m1);
+  asm volatile("vle16.v v1, (%0)" ::"r"(INP1) : "memory");
+
+  VSET(16, e16, m1);
+  VCMP_U16(10, v1, 0xFF00, 0xFF9f, 0xFFe4, 0xFF19, 0xFF20, 0xFF8f, 0xFF2e, 0xFF05,
+                   0xFFe0, 0xFFf9, 0xFFaa, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef);
+}
+
+// vl = 11, mask 0x55: masked-off elements and tail must both keep 0xbeef
+void TEST_CASE11(void) {
+  volatile uint16_t INP1[] = {0xFF00, 0xFF9f, 0xFFe4, 0xFF19, 0xFF20, 0xFF8f, 0xFF2e, 0xFF05,
+                              0xFFe0, 0xFFf9, 0xFFaa, 0xFF71, 0xFFf0, 0xFFc3, 0xFF94, 0xFFbb};
+  VSET(2, e8, m1);
+  VLOAD_8(v0, 0x55, 0x55);
+
+  VSET(16, e16, m1);
+  VLOAD_16(v1, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef,
+               0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef);
+  VLOAD_16(v2, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a,
+               0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a, 0x5a5a);
+
+  VSET_TU(11, e16, m1);
+  asm volatile("vle16.v v1, (%0), v0.t" ::"r"(INP1) : "memory");
+
+  VSET(16, e16, m1);
+  VCMP_U16(11, v1, 0xFF00, 0xbeef, 0xFFe4, 0xbeef, 0xFF20, 0xbeef, 0xFF2e, 0xbeef,
+                   0xFFe0, 0xbeef, 0xFFaa, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef);
+}
+
+// Masked load whose v0 read overlaps a dependent store already in the memory
+// stage. Used to deadlock: read port 1 reported the store's ID to the
+// scoreboard while reading v0 for the masked load.
+void TEST_CASE12(void) {
+  uint32_t vlenb = get_vlenb();
+  volatile uint16_t big[4 * vlenb + 4] __attribute__((aligned(8)));   // slow, misaligned producer
+  volatile uint16_t src[16] __attribute__((aligned(8)));
+  volatile uint16_t dst[16] __attribute__((aligned(8)));
+  for (uint32_t i = 0; i < 4 * vlenb + 4; i++) big[i] = 0x5a5a;
+  for (int i = 0; i < 16; i++) { src[i] = 0xA000 | i; dst[i] = 0; }
+
+  VSET(2, e8, m1);
+  VLOAD_8(v0, 0xAA, 0xAA);
+  VSET(16, e16, m1);
+  asm volatile("vmv.v.x v1, %0" :: "r"(0xbeef));
+
+  asm volatile(
+    "vsetvli zero, %[n],  e16, m8, ta, ma \n"
+    "vle16.v v8, (%[big])                 \n"   // long element-by-element commit (misaligned)
+    "vsetvli zero, %[vl], e16, m1, tu, mu \n"
+    "vle16.v v1, (%[src]), v0.t           \n"   // masked load: must read v0 in the commit stage
+    "vsetvli zero, %[w],  e16, m1, ta, ma \n"
+    "vse16.v v1, (%[dst])                 \n"   // depends on v1, enters the memory stage early
+    :: [n] "r"(4 * vlenb / 2), [big] "r"(&big[1]), [vl] "r"(2), [src] "r"(src),
+       [w] "r"(16), [dst] "r"(dst)
+    : "v1", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "memory");
+
+  // Only element 1 active (mask 0xAA, vl = 2); the rest keep the sentinel
+  VVCMP_U16(13, dst, 0xbeef, 0xA001, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef,
+                     0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef);
+}
+
 int main(void) {
 INIT_CHECK();
 enable_vec();
@@ -159,5 +293,10 @@ TEST_CASE4();
 TEST_CASE5();
 TEST_CASE6();
 TEST_CASE7();
+TEST_CASE8();
+TEST_CASE9();
+TEST_CASE10();
+TEST_CASE11();
+TEST_CASE12();
 EXIT_CHECK();
 }

@@ -219,6 +219,17 @@ do {                                                                           \
                  : [A] "r"(VLEN));                                             \
   } while (0)
 
+// Same as VSET, but tail-undisturbed and mask-undisturbed (tu, mu). Use it
+// when a test checks that elements past vl (or masked-off elements) keep
+// their old value.
+#define VSET_TU(VLEN, VTYPE, LMUL)                                             \
+  do {                                                                         \
+    unsigned int vset_vl_;                                                     \
+    asm volatile("vsetvli %[vl], %[A]," #VTYPE "," #LMUL ", tu, mu \n"         \
+                 : [vl] "=r"(vset_vl_)                                         \
+                 : [A] "r"(VLEN));                                             \
+  } while (0)
+
 #define VSETMAX(VTYPE, LMUL)                                                   \
   do {                                                                         \
     unsigned int vset_vl_;                                                     \

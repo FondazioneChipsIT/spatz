@@ -144,6 +144,61 @@ void TEST_CASE8(void) {
   VCMP_U32(8, v11, 0x05050505, 0x05050505, 0x05050505, 0x05050505);
 }
 
+//*******Store that depends on a masked load still reading v0******//
+// Sequence, issued back to back:
+//   1. a long misaligned LMUL=8 load: element-by-element commit, keeps the
+//      VLSU commit stage busy for many cycles
+//   2. vle16.v v1, v0.t: masked load, reaches the memory stage while (1) is
+//      still committing, then reads v0 once it reaches the commit stage
+//   3. vse16.v v1: depends on (2), enters the memory stage as soon as (2)
+//      has issued its memory requests
+// Bug: while (2) read v0 word 1 through VRF read port 1, that port reported
+// the memory-stage instruction (3) to the scoreboard. (3) waits for (2) to
+// write v1, (2) waits for its v0 read -> deadlock (the test hangs).
+// Several producer lengths are used so the overlap does not depend on one
+// exact cycle count.
+void TEST_CASE9(void) {
+  uint32_t vlenb;
+  asm volatile("csrr %0, vlenb" : "=r"(vlenb));
+  const uint32_t big_len = 4 * vlenb;         // VLMAX for e16, m8
+  volatile uint16_t BIG[4 * vlenb + 8] __attribute__((aligned(8)));
+  volatile uint16_t SRC[16] __attribute__((aligned(8)));
+  volatile uint16_t DST[16] __attribute__((aligned(8)));
+
+  for (uint32_t i = 0; i < big_len + 8; i++)
+    BIG[i] = 0x5a5a;
+  for (int i = 0; i < 16; i++)
+    SRC[i] = 0xA000 | i;
+
+  // Mask 0xAA: with vl = 2 only element 1 is active
+  VSET(2, e8, m1);
+  VLOAD_8(v0, 0xAA, 0xAA);
+
+  for (int k = 0; k < 4; k++) {
+    const uint32_t n = big_len >> k;          // VLMAX, 1/2, 1/4, 1/8
+
+    for (int i = 0; i < 16; i++)
+      DST[i] = 0;
+    VSET(16, e16, m1);
+    asm volatile("vmv.v.x v1, %0" ::"r"(0xbeef));
+
+    asm volatile(
+        "vsetvli zero, %[n],  e16, m8, ta, ma \n"
+        "vle16.v v8, (%[big])                 \n"  // (1) misaligned, slow commit
+        "vsetvli zero, %[vl], e16, m1, tu, mu \n"
+        "vle16.v v1, (%[src]), v0.t           \n"  // (2) masked load
+        "vsetvli zero, %[w],  e16, m1, ta, ma \n"
+        "vse16.v v1, (%[dst])                 \n"  // (3) store, depends on (2)
+        ::[n] "r"(n), [big] "r"(&BIG[1]), [vl] "r"(2), [src] "r"(SRC),
+          [w] "r"(16), [dst] "r"(DST)
+        : "v1", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "memory");
+
+    VVCMP_U16(9 + k, DST, 0xbeef, 0xA001, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef,
+              0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef,
+              0xbeef);
+  }
+}
+
 int main(void) {
   INIT_CHECK();
   enable_vec();
@@ -156,6 +211,7 @@ int main(void) {
   TEST_CASE6();
   TEST_CASE7();
   TEST_CASE8();
+  TEST_CASE9();
 
   EXIT_CHECK();
 }
