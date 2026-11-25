@@ -343,6 +343,116 @@ void TEST_CASE4(void) {
 #endif
 };
 
+// vfabs.v vd, vs is a pseudo for vfsgnjx.vv vd, vs, vs (vs1 == vs2).
+// Special values: the result is always the input with the sign bit cleared.
+// NaNs (quiet and signaling) must keep their payload (no canonicalization),
+// and no exception flag may be raised, even for sNaN inputs.
+//   idx:  0 +0.0      1 -0.0      2 +inf      3 -inf
+//         4 +qNaN     5 -qNaN     6 +sNaN     7 -sNaN
+//         8 -min_sub  9 +min_sub 10 -max     11 -min_norm
+//        12 -1.0     13 +1.0     14 -0.5     15 -NaN (all ones)
+void TEST_CASE5(void) {
+  CLEAR_FFLAGS;
+  VSET(16, e16, m8);
+  VLOAD_16(v16, 0x0000, 0x8000, 0x7c00, 0xfc00, 0x7e00, 0xfe00, 0x7d00, 0xfc01,
+           0x8001, 0x0001, 0xfbff, 0x8400, 0xbc00, 0x3c00, 0xb800, 0xffff);
+  asm volatile("vfabs.v v8, v16");
+  VCMP_U16(13, v8, 0x0000, 0x0000, 0x7c00, 0x7c00, 0x7e00, 0x7e00, 0x7d00,
+           0x7c01, 0x0001, 0x0001, 0x7bff, 0x0400, 0x3c00, 0x3c00, 0x3800,
+           0x7fff);
+  CHECK_FFLAGS(0);
+
+  VSET(16, e32, m8);
+  VLOAD_32(v16, 0x00000000, 0x80000000, 0x7f800000, 0xff800000, 0x7fc00000,
+           0xffc00000, 0x7fa00000, 0xff800001, 0x80000001, 0x00000001,
+           0xff7fffff, 0x80800000, 0xbf800000, 0x3f800000, 0xbf000000,
+           0xffffffff);
+  asm volatile("vfabs.v v8, v16");
+  VCMP_U32(14, v8, 0x00000000, 0x00000000, 0x7f800000, 0x7f800000, 0x7fc00000,
+           0x7fc00000, 0x7fa00000, 0x7f800001, 0x00000001, 0x00000001,
+           0x7f7fffff, 0x00800000, 0x3f800000, 0x3f800000, 0x3f000000,
+           0x7fffffff);
+  CHECK_FFLAGS(0);
+
+#if ELEN == 64
+  VSET(16, e64, m8);
+  VLOAD_64(v16, 0x0000000000000000, 0x8000000000000000, 0x7ff0000000000000,
+           0xfff0000000000000, 0x7ff8000000000000, 0xfff8000000000000,
+           0x7ff4000000000000, 0xfff0000000000001, 0x8000000000000001,
+           0x0000000000000001, 0xffefffffffffffff, 0x8010000000000000,
+           0xbff0000000000000, 0x3ff0000000000000, 0xbfe0000000000000,
+           0xffffffffffffffff);
+  asm volatile("vfabs.v v8, v16");
+  VCMP_U64(15, v8, 0x0000000000000000, 0x0000000000000000, 0x7ff0000000000000,
+           0x7ff0000000000000, 0x7ff8000000000000, 0x7ff8000000000000,
+           0x7ff4000000000000, 0x7ff0000000000001, 0x0000000000000001,
+           0x0000000000000001, 0x7fefffffffffffff, 0x0010000000000000,
+           0x3ff0000000000000, 0x3ff0000000000000, 0x3fe0000000000000,
+           0x7fffffffffffffff);
+  CHECK_FFLAGS(0);
+#endif
+};
+
+// vfabs.v (masked), same inputs as TEST_CASE5. Inactive elements must keep
+// the old vd value; a non-zero sentinel is used so that it cannot be confused
+// with |+0.0|.
+void TEST_CASE6(void) {
+  CLEAR_FFLAGS;
+  VSET(16, e16, m8);
+  VLOAD_16(v16, 0x0000, 0x8000, 0x7c00, 0xfc00, 0x7e00, 0xfe00, 0x7d00, 0xfc01,
+           0x8001, 0x0001, 0xfbff, 0x8400, 0xbc00, 0x3c00, 0xb800, 0xffff);
+  VLOAD_8(v0, 0xAA, 0xAA);
+  VLOAD_16(v8, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef,
+           0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef, 0xbeef);
+  asm volatile("vfabs.v v8, v16, v0.t");
+  VCMP_U16(16, v8, 0xbeef, 0x0000, 0xbeef, 0x7c00, 0xbeef, 0x7e00, 0xbeef,
+           0x7c01, 0xbeef, 0x0001, 0xbeef, 0x0400, 0xbeef, 0x3c00, 0xbeef,
+           0x7fff);
+  CHECK_FFLAGS(0);
+
+  VSET(16, e32, m8);
+  VLOAD_32(v16, 0x00000000, 0x80000000, 0x7f800000, 0xff800000, 0x7fc00000,
+           0xffc00000, 0x7fa00000, 0xff800001, 0x80000001, 0x00000001,
+           0xff7fffff, 0x80800000, 0xbf800000, 0x3f800000, 0xbf000000,
+           0xffffffff);
+  VLOAD_8(v0, 0xAA, 0xAA);
+  VLOAD_32(v8, 0xdeadbeef, 0xdeadbeef, 0xdeadbeef, 0xdeadbeef, 0xdeadbeef,
+           0xdeadbeef, 0xdeadbeef, 0xdeadbeef, 0xdeadbeef, 0xdeadbeef,
+           0xdeadbeef, 0xdeadbeef, 0xdeadbeef, 0xdeadbeef, 0xdeadbeef,
+           0xdeadbeef);
+  asm volatile("vfabs.v v8, v16, v0.t");
+  VCMP_U32(17, v8, 0xdeadbeef, 0x00000000, 0xdeadbeef, 0x7f800000, 0xdeadbeef,
+           0x7fc00000, 0xdeadbeef, 0x7f800001, 0xdeadbeef, 0x00000001,
+           0xdeadbeef, 0x00800000, 0xdeadbeef, 0x3f800000, 0xdeadbeef,
+           0x7fffffff);
+  CHECK_FFLAGS(0);
+
+#if ELEN == 64
+  VSET(16, e64, m8);
+  VLOAD_64(v16, 0x0000000000000000, 0x8000000000000000, 0x7ff0000000000000,
+           0xfff0000000000000, 0x7ff8000000000000, 0xfff8000000000000,
+           0x7ff4000000000000, 0xfff0000000000001, 0x8000000000000001,
+           0x0000000000000001, 0xffefffffffffffff, 0x8010000000000000,
+           0xbff0000000000000, 0x3ff0000000000000, 0xbfe0000000000000,
+           0xffffffffffffffff);
+  VLOAD_8(v0, 0xAA, 0xAA);
+  VLOAD_64(v8, 0xdeadbeefdeadbeef, 0xdeadbeefdeadbeef, 0xdeadbeefdeadbeef,
+           0xdeadbeefdeadbeef, 0xdeadbeefdeadbeef, 0xdeadbeefdeadbeef,
+           0xdeadbeefdeadbeef, 0xdeadbeefdeadbeef, 0xdeadbeefdeadbeef,
+           0xdeadbeefdeadbeef, 0xdeadbeefdeadbeef, 0xdeadbeefdeadbeef,
+           0xdeadbeefdeadbeef, 0xdeadbeefdeadbeef, 0xdeadbeefdeadbeef,
+           0xdeadbeefdeadbeef);
+  asm volatile("vfabs.v v8, v16, v0.t");
+  VCMP_U64(18, v8, 0xdeadbeefdeadbeef, 0x0000000000000000, 0xdeadbeefdeadbeef,
+           0x7ff0000000000000, 0xdeadbeefdeadbeef, 0x7ff8000000000000,
+           0xdeadbeefdeadbeef, 0x7ff0000000000001, 0xdeadbeefdeadbeef,
+           0x0000000000000001, 0xdeadbeefdeadbeef, 0x0010000000000000,
+           0xdeadbeefdeadbeef, 0x3ff0000000000000, 0xdeadbeefdeadbeef,
+           0x7fffffffffffffff);
+  CHECK_FFLAGS(0);
+#endif
+};
+
 int main(void) {
   INIT_CHECK();
   enable_vec();
@@ -352,6 +462,8 @@ int main(void) {
   TEST_CASE2();
   TEST_CASE3();
   TEST_CASE4();
+  TEST_CASE5();
+  TEST_CASE6();
 
   EXIT_CHECK();
 }
