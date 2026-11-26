@@ -142,6 +142,7 @@ add_snitch_test(vfdiv   isa/rv64uv/vfdiv.c)
 add_snitch_test(vfrdiv  isa/rv64uv/vfrdiv.c)
 add_snitch_test(vfmerge isa/rv64uv/vfmerge.c)
 add_snitch_test(vfsqrt  isa/rv64uv/vfsqrt.c)
+add_snitch_test(vfclass isa/rv64uv/vfclass.c)
 
 add_snitch_test(vfmin isa/rv64uv/vfmin.c)
 add_snitch_test(vfmax isa/rv64uv/vfmax.c)

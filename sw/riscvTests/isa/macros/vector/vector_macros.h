@@ -139,7 +139,7 @@ int test_case;
     num_failed++;                                                              \
     return;                                                                    \
   }                                                                            \
-  printf("PASSED.\n");
+  printf("[TC %d] PASSED.\n", casenum);
 
 // Check the result against a floating-point scalar golden value
 #define FCMP(casenum, act, exp)                                                \

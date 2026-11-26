@@ -338,9 +338,87 @@ void TEST_CASE13(void) {
   XCMP(27, data_mismatch, 0);
 }
 
+#define ORDER_NEW_VAL 0xdeadbeef
+
+// The buffers (2 * 2*VLENB words) do not fit the 1 KiB per-hart stack: an
+// on-stack allocation overflows into the next hart's TLS. Allocate in L1.
+#define ORDER_ALLOC(name, n)                                                   \
+  volatile uint32_t *name =                                                    \
+      (volatile uint32_t *)snrt_l1alloc((n) * sizeof(uint32_t))
+
+// WAR: a vector load followed by a scalar fsw to the LAST element of the
+// source buffer (the element the vector load reads last). The vector register
+// must hold the old value, memory the new one.
+#define ORDER_WAR(casenum, LOAD)                                               \
+  do {                                                                         \
+    uint32_t vlenb = get_vlenb();                                              \
+    const uint32_t n = 2 * vlenb; /* e32, m8 */                                \
+    ORDER_ALLOC(buf, n);                                                       \
+    ORDER_ALLOC(out, n);                                                       \
+    for (uint32_t i = 0; i < n; i++) {                                         \
+      buf[i] = 0x1000 + i;                                                     \
+      out[i] = 0;                                                              \
+    }                                                                          \
+    VSET(n, e32, m8);                                                          \
+    asm volatile("fmv.w.x ft0, %[nv]\n"                                        \
+                 LOAD " v8, (%[src])\n"                                        \
+                 "fsw ft0, 0(%[last])\n" ::[nv] "r"(ORDER_NEW_VAL),            \
+                 [src] "r"(buf), [last] "r"(&buf[n - 1])                       \
+                 : "ft0", V8_GROUP, "memory");                                 \
+    asm volatile("vse32.v v8, (%0)" ::"r"(out) : "memory");                    \
+    asm volatile("fence" ::: "memory");                                        \
+    uint32_t mismatch = 0;                                                     \
+    for (uint32_t i = 0; i < n; i++)                                           \
+      if (out[i] != 0x1000 + i)                                                \
+        mismatch++;                                                            \
+    XCMP(casenum, mismatch, 0);                                                \
+    XCMP(casenum + 1, buf[n - 1], ORDER_NEW_VAL);                              \
+  } while (0)
+
+// RAW: a scalar fsw to the FIRST element of the buffer followed by a vector
+// load of the buffer. The vector register must see the new value.
+#define ORDER_RAW(casenum, LOAD)                                               \
+  do {                                                                         \
+    uint32_t vlenb = get_vlenb();                                              \
+    const uint32_t n = 2 * vlenb; /* e32, m8 */                                \
+    ORDER_ALLOC(buf, n);                                                       \
+    ORDER_ALLOC(out, n);                                                       \
+    for (uint32_t i = 0; i < n; i++) {                                         \
+      buf[i] = 0x2000 + i;                                                     \
+      out[i] = 0;                                                              \
+    }                                                                          \
+    VSET(n, e32, m8);                                                          \
+    asm volatile("fmv.w.x ft0, %[nv]\n"                                        \
+                 "fsw ft0, 0(%[src])\n"                                        \
+                 LOAD " v8, (%[src])\n" ::[nv] "r"(ORDER_NEW_VAL),             \
+                 [src] "r"(buf)                                                \
+                 : "ft0", V8_GROUP, "memory");                                 \
+    asm volatile("vse32.v v8, (%0)" ::"r"(out) : "memory");                    \
+    asm volatile("fence" ::: "memory");                                        \
+    uint32_t mismatch = 0;                                                     \
+    for (uint32_t i = 1; i < n; i++)                                           \
+      if (out[i] != 0x2000 + i)                                                \
+        mismatch++;                                                            \
+    XCMP(casenum, out[0], ORDER_NEW_VAL);                                      \
+    XCMP(casenum + 1, mismatch, 0);                                            \
+  } while (0)
+
+// WAR: vle32ff.v then fsw (baseline: vle32.v)
+void TEST_CASE14(void) {
+  ORDER_WAR(28, "vle32ff.v");
+  ORDER_WAR(30, "vle32.v");
+}
+
+// RAW: fsw then vle32ff.v (baseline: vle32.v)
+void TEST_CASE15(void) {
+  ORDER_RAW(32, "vle32ff.v");
+  ORDER_RAW(34, "vle32.v");
+}
+
 int main(void) {
   INIT_CHECK();
   enable_vec();
+  enable_fp();
 
   TEST_CASE1();
   TEST_CASE2();
@@ -355,6 +433,8 @@ int main(void) {
   TEST_CASE11();
   TEST_CASE12();
   TEST_CASE13();
+  TEST_CASE14();
+  TEST_CASE15();
 
   EXIT_CHECK();
 }

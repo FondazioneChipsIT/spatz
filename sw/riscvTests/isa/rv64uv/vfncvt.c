@@ -695,9 +695,10 @@ void TEST_CASE15(void) {
            0xc25bb026, 0x45f1cb8c, 0x45825efb, 0x45a494e4, 0x460f2f5b,
            0x45b1797f);
   asm volatile("vfncvt.rod.f.f.w v8, v16");
-  //                  909.000, -6788.000, -5788.000, 8056.000, 3948.000,
-  //                  9600.000, 2474.000, 3094.000, 7684.000, -6852.000,
-  //                  -54.938, 7736.000, 4172.000, 5268.000, 9160.000, 5680.000
+  // Round-to-odd: truncate, then force the LSB to 1 if the result is inexact
+  //                  908.500, -6788.000, -5788.000, 8052.000, 3946.000,
+  //                  9592.000, 2474.000, 3094.000, 7684.000, -6852.000,
+  //                  -54.906, 7740.000, 4172.000, 5268.000, 9160.000, 5676.000
   VCMP_U16(29, v8, 0x6319, 0xeea1, 0xeda7, 0x6fdd, 0x6bb5, 0x70af, 0x68d5,
            0x6a0b, 0x6f81, 0xeeb1, 0xd2dd, 0x6f8f, 0x6c13, 0x6d25, 0x7079,
            0x6d8b);
@@ -743,9 +744,9 @@ void TEST_CASE16(void) {
   VLOAD_8(v0, 0xAA, 0xAA);
   VCLEAR(v8);
   asm volatile("vfncvt.rod.f.f.w v8, v16, v0.t");
-  //              0.000, -6788.000, 0.000, 8056.000, 0.000, 9600.000, 0.000,
-  //              3094.000, 0.000, -6852.000, 0.000, 7736.000, 0.000, 5268.000,
-  //              0.000, 5680.000
+  //              0.000, -6788.000, 0.000, 8052.000, 0.000, 9592.000, 0.000,
+  //              3094.000, 0.000, -6852.000, 0.000, 7740.000, 0.000, 5268.000,
+  //              0.000, 5676.000
   VCMP_U16(31, v8, 0x0, 0xeea1, 0x0, 0x6fdd, 0x0, 0x70af, 0x0, 0x6a0b, 0x0,
            0xeeb1, 0x0, 0x6f8f, 0x0, 0x6d25, 0x0, 0x6d8b);
 
@@ -764,13 +765,114 @@ void TEST_CASE16(void) {
   VLOAD_8(v0, 0xAA, 0xAA);
   VCLEAR(v8);
   asm volatile("vfncvt.rod.f.f.w v8, v16, v0.t");
-  //              0.000, -7796011.000, 0.000, 1049714.750, 0.000, -8731739.000,
-  //              0.000, -3884944.250, 0.000, -2270131.500, 0.000, -5260237.000,
+  //              0.000, -7796010.500, 0.000, 1049714.875, 0.000, -8731739.000,
+  //              0.000, -3884944.250, 0.000, -2270131.250, 0.000, -5260237.500,
   //              0.000, 3583352.250, 0.000, -9360989.000
   VCMP_U32(32, v8, 0x0, 0xcaedea55, 0x0, 0x49802397, 0x0, 0xcb053c5b, 0x0,
            0xca6d1e41, 0x0, 0xca0a8ecd, 0x0, 0xcaa0879b, 0x0, 0x4a5ab5e1, 0x0,
            0xcb0ed65d);
 #endif
+};
+
+// Edge cases (unmasked). Round-to-odd truncates toward zero and forces the
+// result LSB to 1 when the conversion is inexact:
+//  - exact values keep their LSB (even stays even, odd stays odd)
+//  - ties and values above the halfway point both give the odd neighbour,
+//    where RNE would give an even/rounded-up result
+//  - overflow saturates to the largest finite value (never inf)
+//  - inf/-0.0 are exact; NaNs (signaling too) give the canonical qNaN
+//  - nonzero values below the smallest subnormal give the smallest subnormal
+void TEST_CASE17(void) {
+  VSET(16, e16, m4);
+  //              1.0, 1+2^-10 (exact, odd LSB), 1+2^-11 (tie), 1+2^-12,
+  //              1+2^-10+3*2^-12 (RNE rounds up), -(1+2^-12),
+  //              65520 (RNE overflows to inf), -FLT_MAX, +inf, -inf, qNaN,
+  //              sNaN, -0.0, 2^-40 (underflow), -(2^-23+2^-25), 2^-23 (exact)
+  VLOAD_32(v16, 0x3f800000, 0x3f802000, 0x3f801000, 0x3f800800, 0x3f803800,
+           0xbf800800, 0x477ff000, mMaxf, pInff, mInff, qNaNf, sNaNf, mZerof,
+           0x2b800000, 0xb4200000, 0x34000000);
+  asm volatile("vfncvt.rod.f.f.w v8, v16");
+  //              1.0, 1+2^-10, 1+2^-10, 1+2^-10, 1+2^-10, -(1+2^-10),
+  //              65504, -65504, +inf, -inf, qNaN, qNaN, -0.0,
+  //              2^-24, -3*2^-24, 2^-23
+  VCMP_U16(33, v8, 0x3c00, 0x3c01, 0x3c01, 0x3c01, 0x3c01, 0xbc01, pMaxh,
+           mMaxh, pInfh, mInfh, qNaNh, qNaNh, mZeroh, 0x0001, 0x8003, 0x0002);
+
+#if ELEN == 64
+  VSET(16, e32, m4);
+  //              1.0, 1+2^-23 (exact, odd LSB), 1+2^-24 (tie), 1+2^-30,
+  //              1+2^-23+3*2^-25 (RNE rounds up), -(1+2^-30),
+  //              2^128 (RNE overflows to inf), -DBL_MAX, +inf, -inf, qNaN,
+  //              sNaN, -0.0, 2^-300 (underflow), -(2^-148+2^-150),
+  //              2^-148 (exact)
+  VLOAD_64(v16, 0x3ff0000000000000, 0x3ff0000020000000, 0x3ff0000010000000,
+           0x3ff0000000400000, 0x3ff0000038000000, 0xbff0000000400000,
+           0x47f0000000000000, mMaxd, pInfd, mInfd, qNaNd, sNaNd, mZerod,
+           0x2d30000000000000, 0xb6b4000000000000, 0x36b0000000000000);
+  asm volatile("vfncvt.rod.f.f.w v8, v16");
+  //              1.0, 1+2^-23, 1+2^-23, 1+2^-23, 1+2^-23, -(1+2^-23),
+  //              FLT_MAX, -FLT_MAX, +inf, -inf, qNaN, qNaN, -0.0,
+  //              2^-149, -3*2^-149, 2^-148
+  VCMP_U32(34, v8, 0x3f800000, 0x3f800001, 0x3f800001, 0x3f800001, 0x3f800001,
+           0xbf800001, pMaxf, mMaxf, pInff, mInff, qNaNf, qNaNf, mZerof,
+           0x00000001, 0x80000003, 0x00000002);
+#endif
+};
+
+// The rounding mode is encoded in the instruction: frm must be ignored.
+// RUP/RDN would round these values differently (and overflow to inf).
+void TEST_CASE18(void) {
+  //              1+2^-10+2^-12, -(1+2^-10+2^-12), 1+2^-12, 65520
+  //              -> RUP: 0x3c02, 0xbc01, 0x3c01, inf
+  //              -> RDN: 0x3c01, 0xbc02, 0x3c00, 65504
+  CHANGE_RM(RM_RUP);
+  VSET(4, e16, m4);
+  VLOAD_32(v16, 0x3f802800, 0xbf802800, 0x3f800800, 0x477ff000);
+  asm volatile("vfncvt.rod.f.f.w v8, v16");
+  VCMP_U16(35, v8, 0x3c01, 0xbc01, 0x3c01, pMaxh);
+
+  CHANGE_RM(RM_RDN);
+  VSET(4, e16, m4);
+  VLOAD_32(v16, 0x3f802800, 0xbf802800, 0x3f800800, 0x477ff000);
+  asm volatile("vfncvt.rod.f.f.w v8, v16");
+  VCMP_U16(36, v8, 0x3c01, 0xbc01, 0x3c01, pMaxh);
+
+#if ELEN == 64
+  //              1+2^-23+2^-25, -(1+2^-23+2^-25), 1+2^-30, 2^128
+  CHANGE_RM(RM_RUP);
+  VSET(4, e32, m4);
+  VLOAD_64(v16, 0x3ff0000028000000, 0xbff0000028000000, 0x3ff0000000400000,
+           0x47f0000000000000);
+  asm volatile("vfncvt.rod.f.f.w v8, v16");
+  VCMP_U32(37, v8, 0x3f800001, 0xbf800001, 0x3f800001, pMaxf);
+
+  CHANGE_RM(RM_RDN);
+  VSET(4, e32, m4);
+  VLOAD_64(v16, 0x3ff0000028000000, 0xbff0000028000000, 0x3ff0000000400000,
+           0x47f0000000000000);
+  asm volatile("vfncvt.rod.f.f.w v8, v16");
+  VCMP_U32(38, v8, 0x3f800001, 0xbf800001, 0x3f800001, pMaxf);
+#endif
+
+  CHANGE_RM(RM_RNE);
+};
+
+// vl < VLMAX: tail elements must be left untouched
+void TEST_CASE19(void) {
+  VSET(16, e16, m4);
+  VLOAD_32(v16, 0x3f800000, 0x3f802000, 0x3f801000, 0x3f800800, 0x3f803800,
+           0xbf800800, 0x477ff000, mMaxf, pInff, mInff, qNaNf, sNaNf, mZerof,
+           0x2b800000, 0xb4200000, 0x34000000);
+  VCLEAR(v8);
+
+  VSET(13, e16, m4);
+  asm volatile("vfncvt.rod.f.f.w v8, v16");
+  VCMP_U16(39, v8, 0x3c00, 0x3c01, 0x3c01, 0x3c01, 0x3c01, 0xbc01, pMaxh,
+           mMaxh, pInfh, mInfh, qNaNh, qNaNh, mZeroh);
+
+  VSET(16, e16, m4);
+  VCMP_U16(40, v8, 0x3c00, 0x3c01, 0x3c01, 0x3c01, 0x3c01, 0xbc01, pMaxh,
+           mMaxh, pInfh, mInfh, qNaNh, qNaNh, mZeroh, 0x0, 0x0, 0x0);
 };
 
 int main(void) {
@@ -799,12 +901,11 @@ int main(void) {
   TEST_CASE13();
   TEST_CASE14();
 
-  /*
-  vfncvt.rod.f.f is not supported yet
-
-  //  TEST_CASE15();
-  //  TEST_CASE16();
-  */
+  TEST_CASE15();
+  TEST_CASE16();
+  TEST_CASE17();
+  TEST_CASE18();
+  TEST_CASE19();
 
   EXIT_CHECK();
 }
