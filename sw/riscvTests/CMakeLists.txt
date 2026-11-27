@@ -123,6 +123,7 @@ add_snitch_test(vredmax  isa/rv64uv/vredmax.c)
 add_snitch_test(vredmaxu isa/rv64uv/vredmaxu.c)
 
 add_snitch_test(vmv isa/rv64uv/vmv.c)
+add_snitch_test(vmvr isa/rv64uv/vmvr.c)
 
 add_snitch_test(vslide1up   isa/rv64uv/vslide1up.c)
 add_snitch_test(vslideup    isa/rv64uv/vslideup.c)
