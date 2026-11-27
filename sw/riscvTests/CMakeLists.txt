@@ -86,6 +86,8 @@ add_snitch_test(vxor isa/rv64uv/vxor.c)
 add_snitch_test(vsll isa/rv64uv/vsll.c)
 add_snitch_test(vsrl isa/rv64uv/vsrl.c)
 add_snitch_test(vsra isa/rv64uv/vsra.c)
+add_snitch_test(vnsrl isa/rv64uv/vnsrl.c)
+add_snitch_test(vnsra isa/rv64uv/vnsra.c)
 
 add_snitch_test(vmin  isa/rv64uv/vmin.c)
 add_snitch_test(vminu isa/rv64uv/vminu.c)
